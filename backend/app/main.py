@@ -1,0 +1,184 @@
+import os
+from typing import Optional, List
+from fastapi import FastAPI, Query, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from app.models import (
+    MarketPriceResponse, CropOption, MandiOption, MarketHierarchyResponse,
+    StorageSearchResponse, CalculatorRequest, CalculatorResponse,
+    StateAggregateResponse, DataSourceRecord,
+    MidhStagingSummary, MidhStagingResponse
+)
+from app.market import market_service
+from app.storage import storage_service
+from app.calculator import evaluate_sell_or_store
+
+app = FastAPI(
+    title="SevaSathi API",
+    description="Backend API for SevaSathi — Agricultural Decision Support Platform",
+    version="1.1.0"
+)
+
+# Configure allowed CORS origins from environment (prevent wildcard with credentials)
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+if allowed_origins_env.strip():
+    allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+else:
+    allowed_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/api/health", tags=["Health"])
+def health_check():
+    return {
+        "status": "healthy",
+        "service": "SevaSathi Agricultural Decision Engine",
+        "pilot_region": "Maharashtra, India",
+        "benchmark_mandi": "Lasalgaon (Nashik)",
+        "data_source": "Official data.gov.in AGMARKNET feed"
+    }
+
+@app.get("/api/market/crops", response_model=List[CropOption], tags=["Market Intelligence"])
+def get_crops():
+    return market_service.get_crops()
+
+@app.get("/api/market/mandis", response_model=List[MandiOption], tags=["Market Intelligence"])
+def get_mandis():
+    return market_service.get_mandis()
+
+@app.get("/api/market/hierarchy", response_model=MarketHierarchyResponse, tags=["Market Intelligence"])
+@app.get("/api/market/filters", response_model=MarketHierarchyResponse, tags=["Market Intelligence"])
+def get_market_hierarchy(
+    state: Optional[str] = Query("Maharashtra", description="State name"),
+    district: Optional[str] = Query(None, description="District name"),
+    market: Optional[str] = Query(None, description="Mandi/APMC name"),
+    commodity: Optional[str] = Query(None, description="Commodity name")
+):
+    try:
+        return market_service.get_filter_hierarchy(
+            state=state,
+            district=district,
+            market=market,
+            commodity=commodity
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load market hierarchy: {str(e)}")
+
+@app.get("/api/market/prices", response_model=MarketPriceResponse, tags=["Market Intelligence"])
+def get_market_prices(
+    crop: Optional[str] = Query(None, description="Crop identifier (legacy), e.g. onion"),
+    mandi: Optional[str] = Query(None, description="Mandi identifier (legacy), e.g. lasalgaon"),
+    state: Optional[str] = Query(None, description="State filter e.g. Maharashtra"),
+    district: Optional[str] = Query(None, description="District filter e.g. Nashik"),
+    market: Optional[str] = Query(None, description="Mandi name e.g. Lasalgaon(Vinchur)"),
+    commodity: Optional[str] = Query(None, description="Commodity filter e.g. Onion"),
+    variety: Optional[str] = Query(None, description="Variety filter"),
+    range: str = Query("30d", description="Historical range: 7d, 30d, 90d"),
+    forecast_days: int = Query(7, ge=3, le=14, description="Forecast horizon in days"),
+    mode: str = Query("live", description="Data path: 'live' (official AGMARKNET) or 'demo'")
+):
+    try:
+        return market_service.get_market_data(
+            crop=crop,
+            mandi_id=mandi,
+            state=state,
+            district=district,
+            market=market,
+            commodity=commodity,
+            variety=variety,
+            time_range=range,
+            forecast_days=forecast_days,
+            mode=mode
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/storage/facilities", response_model=StorageSearchResponse, tags=["Storage Finder"])
+def search_facilities(
+    mode: str = Query("auto", description="Location resolution mode: 'text', 'coordinates', 'auto', or 'demo'"),
+    lat: Optional[float] = Query(None, description="Latitude from GPS"),
+    lng: Optional[float] = Query(None, description="Longitude from GPS"),
+    query: Optional[str] = Query(None, description="Village, town, PIN code, or district name"),
+    crop: Optional[str] = Query(None, description="Crop filter e.g. onion"),
+    type: Optional[str] = Query(None, description="Facility type filter"),
+    radius_km: Optional[float] = Query(25.0, description="Search radius in kilometers"),
+    max_results: int = Query(15, ge=1, le=50)
+):
+    try:
+        return storage_service.search_facilities(
+            mode=mode,
+            lat=lat,
+            lng=lng,
+            query=query,
+            crop_filter=crop,
+            type_filter=type,
+            radius_km=radius_km,
+            max_results=max_results
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Storage query error: {str(e)}")
+
+@app.get("/api/storage/state-aggregate", response_model=StateAggregateResponse, tags=["Storage Intelligence"])
+def get_statewise_aggregates():
+    try:
+        return storage_service.get_statewise_aggregates()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load state aggregates: {str(e)}")
+
+@app.get("/api/data-sources", response_model=List[DataSourceRecord], tags=["Provenance & Transparency"])
+def get_data_sources():
+    try:
+        return storage_service.get_data_sources()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load data sources: {str(e)}")
+
+@app.get("/api/storage/staging/summary", response_model=MidhStagingSummary, tags=["MIDH Historical Staging"])
+def get_midh_staging_summary():
+    try:
+        return storage_service.get_midh_staging_summary()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load MIDH staging summary: {str(e)}")
+
+@app.get("/api/storage/staging/midh-projects", response_model=MidhStagingResponse, tags=["MIDH Historical Staging"])
+def get_midh_staging_projects(
+    district: Optional[str] = Query(None, description="Filter by normalized district name"),
+    financial_year: Optional[str] = Query(None, description="Filter by financial year e.g. 2012-13"),
+    query: Optional[str] = Query(None, description="Search by beneficiary name, taluka, or PIN"),
+    flag_filter: Optional[str] = Query(None, description="'clean', 'flagged', or 'duplicate'"),
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0)
+):
+    try:
+        return storage_service.get_midh_staging_projects(
+            district=district,
+            financial_year=financial_year,
+            query=query,
+            flag_filter=flag_filter,
+            limit=limit,
+            offset=offset
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to query MIDH staging projects: {str(e)}")
+
+
+
+@app.post("/api/calculator/evaluate", response_model=CalculatorResponse, tags=["Sell-or-Store Calculator"])
+def calculate_strategies(payload: CalculatorRequest):
+    try:
+        return evaluate_sell_or_store(payload)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Calculation error: {str(e)}")

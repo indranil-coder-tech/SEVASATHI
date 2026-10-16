@@ -1,0 +1,13 @@
+# Backend Environments & secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+env/
+venv/
