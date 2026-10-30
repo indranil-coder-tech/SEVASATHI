@@ -1,0 +1,14 @@
+{
+  "name": "sevasathi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Maharashtra Agri Post-Harvest Decision Support Prototype",
+  "scripts": {
+    "start": "powershell -ExecutionPolicy Bypass -File ./run-sevasathi.ps1",
+    "dev": "powershell -ExecutionPolicy Bypass -File ./run-sevasathi.ps1",
+    "dev:backend": "cd backend && .venv\\Scripts\\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload",
+    "dev:frontend": "cd frontend && npm run dev",
+    "test": "cd frontend && npm run test && cd ../backend && .venv\\Scripts\\pytest",
+    "build": "cd frontend && npm run build"
+  }
+}

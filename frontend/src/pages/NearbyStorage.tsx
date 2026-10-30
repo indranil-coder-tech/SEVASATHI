@@ -262,7 +262,7 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
       }
     } catch (err: unknown) {
       if (currentReqId === searchReqIdRef.current) {
-        setFetchError((err instanceof Error ? err.message : String(err)) || 'Failed to initialize storage finder.');
+        setFetchError(getErrorMessage(err, 'Failed to initialize storage finder.'));
       }
     } finally {
       if (currentReqId === searchReqIdRef.current) {

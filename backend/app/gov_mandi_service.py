@@ -730,7 +730,7 @@ class GovMandiService:
 
         # Match market name strictly (e.g. "lasalgaon" matches "Lasalgaon(Vinchur)" or "Lasalgaon")
         matched_market_rows = sub_df[
-            sub_df["market"].str.lower().str.contains(target_market.lower())
+            sub_df["market"].str.lower().str.contains(target_market.lower(), regex=False)
             | (sub_df["market"].str.lower() == target_market.lower())
         ]
 
@@ -890,7 +890,7 @@ class GovMandiService:
             )
 
         m_sub = sub[
-            sub["market"].str.lower().str.contains(mandi.lower())
+            sub["market"].str.lower().str.contains(mandi.lower(), regex=False)
             | (sub["market"].str.lower() == mandi.lower())
         ]
         if m_sub.empty:

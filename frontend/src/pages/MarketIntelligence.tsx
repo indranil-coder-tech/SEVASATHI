@@ -17,7 +17,7 @@ import {
   Warehouse,
 } from 'lucide-react';
 import { NeomorphicCard } from '../components/NeomorphicCard';
-import { fetchMarketHierarchy, fetchMarketPrices } from '../services/api';
+import { fetchMarketHierarchy, fetchMarketPrices, getErrorMessage } from '../services/api';
 import type { MarketPriceResponse } from '../types';
 import { useApp } from '../context/AppContext';
 import { AgriImage } from '../components/AgriImage';
@@ -94,6 +94,16 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
         setHierarchyInitialized(true);
       } catch (err: unknown) {
         console.error('Failed to load initial market hierarchy', err);
+        // Fallback default hierarchy so filters remain usable even when backend is starting
+        setStates(['Maharashtra']);
+        setDistricts(['Nashik', 'Pune', 'Ahmednagar', 'Solapur', 'Jalgaon', 'Nagpur', 'Sangli', 'Latur']);
+        setMandis(['Lasalgaon', 'Lasalgaon(Vinchur)', 'Pimpalgaon Baswant', 'Nashik', 'Pune', 'Khed(Chakan)']);
+        setCommodities(['Onion', 'Tomato', 'Potato', 'Soyabean', 'Wheat', 'Maize', 'Cotton']);
+        setVarieties(['Red', 'Pol', 'Unhali', 'Local', 'FAQ', 'Other']);
+        setSelectedState('Maharashtra');
+        setSelectedDistrict('Nashik');
+        setSelectedMandi('Lasalgaon');
+        setSelectedCommodity('Onion');
         setHierarchyInitialized(true);
       }
     }
@@ -205,7 +215,7 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
       setMarketData(res);
     } catch (err: unknown) {
       setMarketData(null);
-      setError((err instanceof Error ? err.message : String(err)) || t('market.no_data_title'));
+      setError(getErrorMessage(err, t('market.no_data_title')));
     } finally {
       setLoading(false);
     }

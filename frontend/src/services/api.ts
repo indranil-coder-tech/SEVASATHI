@@ -40,9 +40,20 @@ export function isApiError(error: unknown): error is ApiError {
 
 export function getErrorMessage(error: unknown, fallback: string = 'An unexpected error occurred'): string {
   if (error instanceof ApiError) {
-    return error.userMessage;
+    if (error.isBackendOffline || error.code === 'NETWORK_ERROR' || error.code === 'HTML_RESPONSE') {
+      return error.userMessage || 'Backend server is offline. Please run the backend server on port 8000.';
+    }
+    return error.userMessage || fallback;
   }
   if (error instanceof Error) {
+    if (
+      error.message.includes('ECONNREFUSED') ||
+      error.message.toLowerCase() === 'failed to fetch' ||
+      error.message.includes('Load failed') ||
+      error.message.includes('text/plain')
+    ) {
+      return 'Backend server is offline. Please run the backend server on port 8000.';
+    }
     return error.message;
   }
   return fallback;
@@ -104,7 +115,7 @@ export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {
       const contentType = res.headers.get('content-type') || '';
       const isJson = contentType.includes('application/json');
 
-      // Check for HTML returned instead of JSON (P0 root cause)
+      // Check for non-JSON responses (HTML SPA fallbacks, proxy errors, or backend offline text/plain)
       if (!isJson) {
         const preview = await res.text().catch(() => '');
         const isHtml = preview.trim().toLowerCase().startsWith('<!doctype') || preview.includes('<html');
@@ -117,6 +128,26 @@ export async function apiFetch<T>(endpoint: string, options: ApiFetchOptions = {
             'सर्व्हर उपलब्ध नाही किंवा चुकीचा कॉन्फिगर केला आहे. (Server is unreachable or misconfigured)'
           );
         }
+
+        // Vite proxy errors (e.g. ECONNREFUSED) return text/plain with 500/504
+        const isProxyOrServerDown =
+          res.status >= 500 ||
+          res.status === 0 ||
+          preview.includes('ECONNREFUSED') ||
+          preview.includes('proxy error') ||
+          preview.includes('connect error') ||
+          contentType.includes('text/plain');
+
+        if (isProxyOrServerDown) {
+          throw new ApiError(
+            res.status,
+            'NETWORK_ERROR',
+            `Backend server offline or unreachable (${res.status} ${contentType}) for ${endpoint}. Ensure backend is running on port 8000.`,
+            true,
+            'बॅकएंड सर्व्हर ऑफलाइन आहे: कृपया टर्मिनलमध्ये पायथन बॅकएंड (port 8000) सुरू करा.'
+          );
+        }
+
         throw new ApiError(
           res.status,
           'PARSE_ERROR',
