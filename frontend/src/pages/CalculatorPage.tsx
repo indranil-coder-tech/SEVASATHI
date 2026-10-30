@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   Scale,
   Info,
+  Printer,
 } from 'lucide-react';
 import { NeomorphicCard } from '../components/NeomorphicCard';
 import { evaluateCalculator } from '../services/api';
 import type { CalculatorRequest, CalculatorResponse, StrategyDetail } from '../types';
 import { useAppContext } from '../context/AppContext';
+import { AgriImage } from '../components/AgriImage';
 
 interface CalculatorPageProps {
   initialValues?: {
@@ -36,6 +38,7 @@ export const CalculatorPage: React.FC<CalculatorPageProps> = ({ initialValues })
   const [result, setResult] = useState<CalculatorResponse | null>(null);
   const [calcError, setCalcError] = useState<string | null>(null);
   const [isCalculating, setIsCalculating] = useState<boolean>(false);
+  const [evalTimestamp] = useState<string>(() => `${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`);
   const requestIdRef = React.useRef<number>(0);
 
   // Sync if initial values change
@@ -121,13 +124,25 @@ export const CalculatorPage: React.FC<CalculatorPageProps> = ({ initialValues })
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-[#26352B]">
-          {t('calculator.page_title')}
-        </h1>
-        <p className="text-xs sm:text-sm text-[#69776D]">
-          {t('calculator.page_subtitle')}
-        </p>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+        <div className="lg:col-span-8 space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#26352B]">
+            {t('calculator.page_title')}
+          </h1>
+          <p className="text-xs sm:text-sm text-[#69776D] leading-relaxed">
+            {t('calculator.page_subtitle')}
+          </p>
+        </div>
+
+        <div className="lg:col-span-4">
+          <AgriImage
+            name="calculator_weighing_scale"
+            alt={t('calculator.calc_image_alt')}
+            caption={t('calculator.calc_image_caption')}
+            aspectRatio="aspect-[16/9] lg:aspect-[16/8]"
+            className="max-h-32 shadow-sm border border-[#d8e0d6]"
+          />
+        </div>
       </div>
 
       {calcError && (
@@ -354,7 +369,7 @@ export const CalculatorPage: React.FC<CalculatorPageProps> = ({ initialValues })
       {result && (
         <div className="space-y-6">
           {/* Break-Even Banner */}
-          <div className="p-4 sm:p-5 rounded-2xl neo-card bg-gradient-to-r from-[#E9EEE8] via-[#e2ebe0] to-[#E9EEE8] flex flex-col sm:flex-row items-center justify-between gap-4 border-l-4 border-[#52785B]">
+          <div className="p-4 sm:p-5 rounded-2xl neo-card bg-gradient-to-r from-[#E9EEE8] via-[#e2ebe0] to-[#E9EEE8] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-l-4 border-[#52785B]">
             <div>
               <span className="text-xs font-semibold uppercase tracking-wider text-[#69776D]">
                 {t('calculator.break_even_title')}
@@ -382,17 +397,29 @@ export const CalculatorPage: React.FC<CalculatorPageProps> = ({ initialValues })
               </p>
             </div>
 
-            <div className="p-3 rounded-xl neo-inset bg-[#E9EEE8] text-xs text-right sm:max-w-xs">
-              <span className="text-[10px] text-[#69776D] uppercase block">
-                {t('calculator.recommended_title')}
-              </span>
-              <strong className="text-sm font-bold text-[#52785B] block">
-                {result.recommended_strategy_id === 'strategy_c'
-                  ? t('calculator.strategy_c_name')
-                  : result.recommended_strategy_id === 'strategy_b'
-                  ? t('calculator.strategy_b_name')
-                  : t('calculator.strategy_a_name')}
-              </strong>
+            <div className="flex items-center gap-3 self-stretch sm:self-auto justify-between sm:justify-end">
+              <div className="p-3 rounded-xl neo-inset bg-[#E9EEE8] text-xs text-right sm:max-w-xs">
+                <span className="text-[10px] text-[#69776D] uppercase block">
+                  {t('calculator.recommended_title')}
+                </span>
+                <strong className="text-sm font-bold text-[#52785B] block">
+                  {result.recommended_strategy_id === 'strategy_c'
+                    ? t('calculator.strategy_c_name')
+                    : result.recommended_strategy_id === 'strategy_b'
+                    ? t('calculator.strategy_b_name')
+                    : t('calculator.strategy_a_name')}
+                </strong>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="neo-btn-primary px-3.5 py-2.5 text-xs font-bold flex items-center gap-1.5 no-print shadow-sm"
+                title={t('calculator.btn_print_summary')}
+              >
+                <Printer className="w-4 h-4" />
+                <span className="hidden sm:inline">{t('calculator.btn_print_summary')}</span>
+              </button>
             </div>
           </div>
 
@@ -429,7 +456,7 @@ export const CalculatorPage: React.FC<CalculatorPageProps> = ({ initialValues })
           </div>
 
           {/* Assumptions & Formula Summary */}
-          <NeomorphicCard className="space-y-3">
+          <NeomorphicCard className="space-y-3 no-print">
             <div className="flex items-center gap-2">
               <Info className="w-4 h-4 text-[#52785B]" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-[#26352B]">
@@ -447,6 +474,150 @@ export const CalculatorPage: React.FC<CalculatorPageProps> = ({ initialValues })
               {result.disclaimer}
             </p>
           </NeomorphicCard>
+
+          {/* Feature C: Printable Decision Summary Report */}
+          <div className="neo-card p-6 sm:p-8 space-y-5 bg-white border border-[#d8e0d6] page-break-inside-avoid">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#d8e0d6] pb-3 gap-2">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-base text-[#304C38]">सेवासाथी SevaSathi</span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#52785B]/15 text-[#304C38]">
+                    {t('calculator.print_report_title')}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#69776D] mt-0.5">
+                  {t('calculator.print_date')} {evalTimestamp}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="neo-btn-primary px-3.5 py-1.5 text-xs font-bold flex items-center gap-1.5 self-start sm:self-auto no-print"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>{t('calculator.btn_print_summary')}</span>
+              </button>
+            </div>
+
+            {/* Inputs Parameters Summary Table */}
+            <div className="space-y-1.5">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#26352B]">
+                {t('calculator.print_farmer_inputs')}
+              </h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div className="p-2 rounded-lg bg-[#F6F8F5] border border-[#e1e8df]">
+                  <span className="text-[#69776D] block text-[10px]">{t('calculator.total_harvest')}</span>
+                  <strong className="text-[#26352B]">{harvestQuantity} {t('common.quintals')}</strong>
+                </div>
+                <div className="p-2 rounded-lg bg-[#F6F8F5] border border-[#e1e8df]">
+                  <span className="text-[#69776D] block text-[10px]">{t('calculator.current_price')}</span>
+                  <strong className="text-[#26352B]">{formatCurrency(currentPrice)}/q</strong>
+                </div>
+                <div className="p-2 rounded-lg bg-[#F6F8F5] border border-[#e1e8df]">
+                  <span className="text-[#69776D] block text-[10px]">{t('calculator.future_price')}</span>
+                  <strong className="text-[#26352B]">{formatCurrency(expectedFuturePrice)}/q</strong>
+                </div>
+                <div className="p-2 rounded-lg bg-[#F6F8F5] border border-[#e1e8df]">
+                  <span className="text-[#69776D] block text-[10px]">{t('calculator.urgent_cash')}</span>
+                  <strong className="text-[#26352B]">{formatCurrency(cashRequired)}</strong>
+                </div>
+                <div className="p-2 rounded-lg bg-[#F6F8F5] border border-[#e1e8df]">
+                  <span className="text-[#69776D] block text-[10px]">{t('calculator.storage_duration')}</span>
+                  <strong className="text-[#26352B]">{storageMonths} {t('common.months')}</strong>
+                </div>
+                <div className="p-2 rounded-lg bg-[#F6F8F5] border border-[#e1e8df]">
+                  <span className="text-[#69776D] block text-[10px]">{t('calculator.storage_rate')}</span>
+                  <strong className="text-[#26352B]">{formatCurrency(storageMonthlyCost)}/q/mo</strong>
+                </div>
+                <div className="p-2 rounded-lg bg-[#F6F8F5] border border-[#e1e8df]">
+                  <span className="text-[#69776D] block text-[10px]">{t('calculator.loss_percentage')}</span>
+                  <strong className="text-[#26352B]">{storageLossPct}%</strong>
+                </div>
+                <div className="p-2 rounded-lg bg-[#F6F8F5] border border-[#e1e8df]">
+                  <span className="text-[#69776D] block text-[10px]">{t('calculator.break_even_title')}</span>
+                  <strong className="text-[#304C38]">{formatCurrency(result.break_even_future_price)}/q</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Strategic Comparison Table */}
+            <div className="space-y-1.5">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#26352B]">
+                {t('calculator.print_strategies_table')}
+              </h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="bg-[#F0F4EF] border-b border-[#d8e0d6] text-[#26352B]">
+                      <th className="py-1.5 px-2.5 font-bold">रणनीती (Strategy)</th>
+                      <th className="py-1.5 px-2.5 font-bold text-right">निव्वळ नफा (Net Income)</th>
+                      <th className="py-1.5 px-2.5 font-bold text-right">आज मिळणारी रोख (Immediate Cash)</th>
+                      <th className="py-1.5 px-2.5 font-bold text-right">साठवणूक खर्च (Storage Fees)</th>
+                      <th className="py-1.5 px-2.5 font-bold text-center">रोख गरज पूर्ण? (Cash Met?)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#e2e8e0]">
+                    <tr className={result.recommended_strategy_id === 'strategy_a' ? 'bg-[#EAF2E8] font-semibold' : ''}>
+                      <td className="py-2 px-2.5">
+                        {t('calculator.strategy_a_name')}
+                        {result.recommended_strategy_id === 'strategy_a' && ' ★'}
+                      </td>
+                      <td className="py-2 px-2.5 text-right font-bold text-[#26352B]">{formatCurrency(result.strategy_a_sell_now.total_net_income)}</td>
+                      <td className="py-2 px-2.5 text-right">{formatCurrency(result.strategy_a_sell_now.immediate_cash_net)}</td>
+                      <td className="py-2 px-2.5 text-right">₹0</td>
+                      <td className="py-2 px-2.5 text-center text-emerald-700">
+                        {result.strategy_a_sell_now.is_cash_requirement_met ? '✓ होय (Yes)' : '✗ नाही (No)'}
+                      </td>
+                    </tr>
+                    <tr className={result.recommended_strategy_id === 'strategy_b' ? 'bg-[#EAF2E8] font-semibold' : ''}>
+                      <td className="py-2 px-2.5">
+                        {t('calculator.strategy_b_name')}
+                        {result.recommended_strategy_id === 'strategy_b' && ' ★'}
+                      </td>
+                      <td className="py-2 px-2.5 text-right font-bold text-[#26352B]">{formatCurrency(result.strategy_b_store_all.total_net_income)}</td>
+                      <td className="py-2 px-2.5 text-right">₹0</td>
+                      <td className="py-2 px-2.5 text-right">{formatCurrency(result.strategy_b_store_all.storage_cost_total)}</td>
+                      <td className="py-2 px-2.5 text-center text-amber-700">
+                        {cashRequired > 0 ? '✗ नाही (No)' : '✓ होय (Yes)'}
+                      </td>
+                    </tr>
+                    <tr className={result.recommended_strategy_id === 'strategy_c' ? 'bg-[#EAF2E8] font-semibold' : ''}>
+                      <td className="py-2 px-2.5">
+                        {t('calculator.strategy_c_name')}
+                        {result.recommended_strategy_id === 'strategy_c' && ' ★'}
+                      </td>
+                      <td className="py-2 px-2.5 text-right font-bold text-[#26352B]">{formatCurrency(result.strategy_c_partial.total_net_income)}</td>
+                      <td className="py-2 px-2.5 text-right">{formatCurrency(result.strategy_c_partial.immediate_cash_net)}</td>
+                      <td className="py-2 px-2.5 text-right">{formatCurrency(result.strategy_c_partial.storage_cost_total)}</td>
+                      <td className="py-2 px-2.5 text-center text-emerald-700">
+                        {result.strategy_c_partial.is_cash_requirement_met ? '✓ होय (Yes)' : '✗ नाही (No)'}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Recommendation & Rationale */}
+            <div className="p-3 rounded-xl bg-[#F6F8F5] border border-[#e1e8df] text-xs space-y-1">
+              <span className="font-bold text-[#304C38] block uppercase text-[10px]">
+                {t('calculator.recommended_title')}: {result.recommended_strategy_id === 'strategy_c' ? t('calculator.strategy_c_name') : result.recommended_strategy_id === 'strategy_b' ? t('calculator.strategy_b_name') : t('calculator.strategy_a_name')}
+              </span>
+              <p className="text-[#26352B] leading-relaxed">{result.decision_rationale}</p>
+            </div>
+
+            {/* Signature & APMC Mandi Notes Section */}
+            <div className="pt-3 border-t border-[#d8e0d6] grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-[#69776D]">
+              <div className="border border-dashed border-[#b8c6b7] rounded-xl p-3 min-h-[60px]">
+                <span className="font-semibold text-[#26352B] block mb-1">{t('calculator.print_notes_signature')}</span>
+              </div>
+              <div className="flex flex-col justify-end text-right text-[10px]">
+                <p className="font-semibold text-[#304C38]">SevaSathi (सेवासाथी) — AI-Powered Agricultural Decision Support</p>
+                <p className="italic text-[#69776D] mt-0.5">{result.disclaimer}</p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

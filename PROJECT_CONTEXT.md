@@ -216,7 +216,11 @@ Given:
   - [x] `/api/data-sources` (Provenance register with MIDH entry).
   - [x] `/api/storage/staging/summary` (183 projects, ₹11,550.43 Lakhs subsidy, 405,162.84 MT approved capacity).
   - [x] `/api/storage/staging/midh-projects` (Search, district, financial year, and flag filtering).
-- [x] **Automated Tests**: 29 passing Pytest test cases (`29 passed in 3.44s`) covering location search, duplicate handling, missing coordinates, and MIDH dataset reconciliation.
-- [x] **Production Build**: Clean Vite compilation (`tsc -b && vite build` completed in 1.52s) with zero TypeScript errors.
+- [x] **Automated Tests**: 40 passing Pytest test cases (`40 passed in 15.41s`) covering location search, duplicate handling, missing coordinates, genuine live ingestion, extreme calculator boundary cases, cash shortfall rules, and 100% localization key parity across `mr.json`, `hi.json`, and `en.json`.
+- [x] **Authentic Agricultural Photo System**: Real-world licensed photographs from Wikimedia Commons and Flickr Commons (CC BY-SA 4.0, CC BY 2.0, CC BY-SA 3.0) with local WebP and JPG fallbacks and legal attributions in `frontend/public/images/agriculture/ATTRIBUTIONS.md`.
+- [x] **Farmer Quick-Start Journey**: Interactive 5-step workflow stepper on Dashboard guiding farmers from market rate lookup to final storage and sale decisions.
+- [x] **Crop & Storage Compatibility Guidance**: Scientific visual education section detailing differences between Naturally Ventilated Onion Chawls, Refrigerated Cold Stores, and WDRA Warehouses with ICAR-DOGR and NHB references.
+- [x] **Printable Decision Summary Report**: Browser-native print-ready decision report with user input record, 3-strategy comparison table, break-even price, and signature block.
+- [x] **Production Build**: Clean Vite compilation (`tsc -b && vite build` completed in 2.54s) with zero TypeScript errors.
 - [x] **Documentation**: Updated `README.md` and comprehensive `PROJECT_CONTEXT.md`.
 

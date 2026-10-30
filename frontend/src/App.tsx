@@ -37,6 +37,7 @@ function AppContent() {
     currentPrice?: number;
     expectedFuturePrice?: number;
   }>({});
+  const [selectedCropForStorage, setSelectedCropForStorage] = useState<string>('all');
 
   const handleNavigateToCalculator = (data: {
     crop: string;
@@ -46,6 +47,12 @@ function AppContent() {
   }) => {
     setCalculatorInitialData(data);
     setActiveTab('calculator');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleNavigateToStorage = (crop: string) => {
+    setSelectedCropForStorage(crop.toLowerCase());
+    setActiveTab('storage');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -67,10 +74,15 @@ function AppContent() {
           )}
 
           {activeTab === 'market' && (
-            <MarketIntelligence onNavigateToCalculator={handleNavigateToCalculator} />
+            <MarketIntelligence
+              onNavigateToCalculator={handleNavigateToCalculator}
+              onNavigateToStorage={handleNavigateToStorage}
+            />
           )}
 
-          {activeTab === 'storage' && <NearbyStorage />}
+          {activeTab === 'storage' && (
+            <NearbyStorage initialCropFilter={selectedCropForStorage} />
+          )}
 
           {activeTab === 'calculator' && (
             <CalculatorPage initialValues={calculatorInitialData} />

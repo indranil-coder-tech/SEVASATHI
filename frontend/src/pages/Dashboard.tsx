@@ -10,12 +10,16 @@ import {
   Scale,
   MapPin,
   Navigation,
+  CheckCircle2,
+  Sprout,
+  Tractor,
 } from 'lucide-react';
 import { NeomorphicCard } from '../components/NeomorphicCard';
 import { fetchMarketPrices } from '../services/api';
 import type { MarketPriceResponse } from '../types';
 import { useApp } from '../context/AppContext';
 import { MiniSparkline } from '../components/MiniSparkline';
+import { AgriImage } from '../components/AgriImage';
 
 interface DashboardProps {
   onNavigate: (tab: string) => void;
@@ -27,6 +31,57 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   const [error, setError] = useState<string | null>(null);
 
   const { t, userLocation, requestLocation, formatCurrency, translateEntity, formatDate } = useApp();
+
+  const [activeImageIdx, setActiveImageIdx] = useState<number>(0);
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+
+  // Automatically cycle through hero images every 4 seconds
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      setActiveImageIdx((prev) => (prev + 1) % 4);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isPaused]);
+
+  const heroImages = [
+    {
+      id: 'green_fields',
+      name: 'hero_green_fields',
+      title: t('dashboard.img_market_title'),
+      caption: t('dashboard.hero_image_caption'),
+      alt: t('dashboard.hero_image_alt'),
+      icon: TrendingUp,
+      tag: 'समृद्ध शिवार',
+    },
+    {
+      id: 'tractor',
+      name: 'tractor_harvest_farming',
+      title: t('dashboard.img_tractor_title'),
+      caption: t('dashboard.img_tractor_desc'),
+      alt: t('dashboard.img_tractor_title'),
+      icon: Tractor,
+      tag: 'आधुनिक मशागत',
+    },
+    {
+      id: 'sprout',
+      name: 'crop_seedling_sprout',
+      title: t('dashboard.img_sprout_title'),
+      caption: t('dashboard.img_sprout_desc'),
+      alt: t('dashboard.img_sprout_title'),
+      icon: Sprout,
+      tag: 'पीक संगोपन',
+    },
+    {
+      id: 'terraced',
+      name: 'terraced_orchard_landscape',
+      title: t('dashboard.img_storage_title'),
+      caption: t('dashboard.img_storage_desc'),
+      alt: t('dashboard.img_storage_title'),
+      icon: Warehouse,
+      tag: 'साठवणूक शिवार',
+    },
+  ];
 
   useEffect(() => {
     let isMounted = true;
@@ -59,9 +114,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       }))
     : [];
 
+  const workflowSteps = [
+    {
+      num: t('dashboard.workflow_step1_num'),
+      title: t('dashboard.workflow_step1_title'),
+      desc: t('dashboard.workflow_step1_desc'),
+      tab: 'market',
+      icon: TrendingUp,
+    },
+    {
+      num: t('dashboard.workflow_step2_num'),
+      title: t('dashboard.workflow_step2_title'),
+      desc: t('dashboard.workflow_step2_desc'),
+      tab: 'market',
+      icon: BarChart3,
+    },
+    {
+      num: t('dashboard.workflow_step3_num'),
+      title: t('dashboard.workflow_step3_title'),
+      desc: t('dashboard.workflow_step3_desc'),
+      tab: 'storage',
+      icon: Warehouse,
+    },
+    {
+      num: t('dashboard.workflow_step4_num'),
+      title: t('dashboard.workflow_step4_title'),
+      desc: t('dashboard.workflow_step4_desc'),
+      tab: 'calculator',
+      icon: Calculator,
+    },
+    {
+      num: t('dashboard.workflow_step5_num'),
+      title: t('dashboard.workflow_step5_title'),
+      desc: t('dashboard.workflow_step5_desc'),
+      tab: 'calculator',
+      icon: CheckCircle2,
+    },
+  ];
+
   return (
     <div className="space-y-10 animate-fade-in">
-      {/* Live Location Alert Bar if Prompting / Detected */}
+      {/* Live Location Alert Bar */}
       <div className="p-3 sm:p-4 rounded-2xl neo-card bg-gradient-to-r from-[#E9EEE8] via-[#e2ebe0] to-[#E9EEE8] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs border-l-4 border-[#52785B]">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-full bg-[#52785B]/20 flex items-center justify-center text-[#52785B] flex-shrink-0">
@@ -69,11 +162,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           </div>
           <div>
             <div className="font-bold text-[#26352B]">
-              {t('location_detected')}:{' '}
+              {t('nav.location_detected')}:{' '}
               <span className="text-[#304C38]">{userLocation.displayName}</span>
             </div>
             <p className="text-[#69776D] text-[11px] mt-0.5">
-              {t('location_prompt_banner')}
+              {t('nav.location_prompt_banner')}
             </p>
           </div>
         </div>
@@ -83,61 +176,173 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           className="neo-btn px-3 py-1.5 rounded-full text-xs font-bold text-[#304C38] flex items-center gap-1.5 flex-shrink-0"
         >
           <Navigation className="w-3.5 h-3.5 text-[#52785B]" />
-          <span>{t('location_allow_btn')}</span>
+          <span>{t('nav.location_allow_btn')}</span>
         </button>
       </div>
 
-      {/* Hero Welcome Banner */}
-      <section className="relative overflow-hidden neo-card p-6 sm:p-10 bg-gradient-to-br from-[#E9EEE8] via-[#E4ECE3] to-[#E9EEE8]">
-        <div className="max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#52785B]/15 text-[#304C38] text-xs font-semibold border border-[#52785B]/30">
-            <Sparkles className="w-3.5 h-3.5 text-[#52785B]" />
-            <span>{t('hero_pill')}</span>
-          </div>
+      {/* Hero Section with Authentic Farmer Photograph */}
+      <section className="relative overflow-hidden neo-card p-6 sm:p-8 lg:p-10 bg-gradient-to-br from-[#E9EEE8] via-[#E4ECE3] to-[#E9EEE8]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          {/* Left Column: Text & Actions */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#52785B]/15 text-[#304C38] text-xs font-semibold border border-[#52785B]/30">
+              <Sparkles className="w-3.5 h-3.5 text-[#52785B]" />
+              <span>{t('dashboard.hero_pill')}</span>
+            </div>
 
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-[#26352B] leading-tight">
-            {t('hero_title_1')}{' '}
-            <span className="text-[#52785B] block sm:inline">{t('hero_title_2')}</span>
-          </h1>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-[#26352B] leading-tight">
+              {t('dashboard.hero_title_1')}{' '}
+              <span className="text-[#52785B] block sm:inline">{t('dashboard.hero_title_2')}</span>
+            </h1>
 
-          <p className="text-base sm:text-lg text-[#69776D] leading-relaxed">
-            {t('hero_description')}
-          </p>
-
-          {/* Core Principle Quote */}
-          <div className="p-4 rounded-xl neo-inset border-l-4 border-[#52785B] bg-[#E9EEE8]">
-            <p className="text-sm font-semibold text-[#26352B] italic">
-              {t('hero_quote')}
+            <p className="text-sm sm:text-base text-[#69776D] leading-relaxed">
+              {t('dashboard.hero_description')}
             </p>
+
+            {/* Core Principle Quote */}
+            <div className="p-3.5 sm:p-4 rounded-xl neo-inset border-l-4 border-[#52785B] bg-[#E9EEE8]">
+              <p className="text-xs sm:text-sm font-semibold text-[#26352B] italic">
+                {t('dashboard.hero_quote')}
+              </p>
+            </div>
+
+            {/* Quick Action CTAs */}
+            <div className="pt-2 flex flex-wrap gap-3">
+              <button
+                onClick={() => onNavigate('storage')}
+                className="neo-btn-primary px-5 py-2.5 sm:px-6 sm:py-3 text-xs sm:text-sm font-semibold flex items-center gap-2"
+              >
+                <Warehouse className="w-4 h-4" />
+                <span>{t('dashboard.btn_find_storage')}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => onNavigate('market')}
+                className="neo-btn px-5 py-2.5 sm:px-6 sm:py-3 text-xs sm:text-sm font-semibold flex items-center gap-2 text-[#26352B]"
+              >
+                <TrendingUp className="w-4 h-4 text-[#52785B]" />
+                <span>{t('dashboard.btn_explore_market')}</span>
+              </button>
+
+              <button
+                onClick={() => onNavigate('calculator')}
+                className="neo-btn px-5 py-2.5 sm:px-6 sm:py-3 text-xs sm:text-sm font-semibold flex items-center gap-2 text-[#26352B]"
+              >
+                <Calculator className="w-4 h-4 text-[#52785B]" />
+                <span>{t('dashboard.btn_calculator')}</span>
+              </button>
+            </div>
           </div>
 
-          {/* Quick Action CTAs */}
-          <div className="pt-2 flex flex-wrap gap-3">
-            <button
-              onClick={() => onNavigate('storage')}
-              className="neo-btn-primary px-6 py-3 text-sm font-semibold flex items-center gap-2"
-            >
-              <Warehouse className="w-4 h-4" />
-              <span>{t('btn_find_storage')}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+          {/* Right Column: Authentic Agricultural Showcase (Auto-changing slideshow) */}
+          <div
+            className="lg:col-span-5 flex flex-col justify-center space-y-3"
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+            onTouchStart={() => setIsPaused(true)}
+            onTouchEnd={() => setIsPaused(false)}
+          >
+            <div className="relative group">
+              <AgriImage
+                key={heroImages[activeImageIdx].name}
+                name={heroImages[activeImageIdx].name}
+                alt={heroImages[activeImageIdx].alt}
+                caption={heroImages[activeImageIdx].caption}
+                priority={true}
+                aspectRatio="aspect-[4/3] sm:aspect-[16/10] lg:aspect-[4/3]"
+                className="shadow-md neo-card border border-[#d8e2d7] transition-all duration-500"
+              />
+              <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-[#304C38]/85 backdrop-blur-md text-white text-[11px] font-semibold flex items-center gap-1.5 shadow-sm">
+                <Sparkles className="w-3.5 h-3.5 text-[#A9C3AC]" />
+                <span>{heroImages[activeImageIdx].tag}</span>
+              </div>
+            </div>
 
-            <button
-              onClick={() => onNavigate('market')}
-              className="neo-btn px-6 py-3 text-sm font-semibold flex items-center gap-2 text-[#26352B]"
-            >
-              <TrendingUp className="w-4 h-4 text-[#52785B]" />
-              <span>{t('btn_explore_market')}</span>
-            </button>
-
-            <button
-              onClick={() => onNavigate('calculator')}
-              className="neo-btn px-6 py-3 text-sm font-semibold flex items-center gap-2 text-[#26352B]"
-            >
-              <Calculator className="w-4 h-4 text-[#52785B]" />
-              <span>{t('btn_calculator')}</span>
-            </button>
+            {/* Thumbnail Navigation Selector */}
+            <div className="grid grid-cols-4 gap-2">
+              {heroImages.map((img, idx) => {
+                const IconComponent = img.icon;
+                const isActive = activeImageIdx === idx;
+                return (
+                  <button
+                    key={img.id}
+                    onClick={() => {
+                      setActiveImageIdx(idx);
+                    }}
+                    className={`p-1.5 sm:p-2 rounded-xl text-left transition-all text-[11px] font-semibold flex flex-col items-center justify-center gap-1 border ${
+                      isActive
+                        ? 'bg-[#52785B] text-white shadow-sm border-[#52785B]'
+                        : 'neo-btn text-[#69776D] hover:text-[#26352B] border-transparent'
+                    }`}
+                    title={img.title}
+                  >
+                    <div className="flex items-center gap-1">
+                      <IconComponent className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span className="hidden sm:inline truncate">{img.tag.split(' ')[0]}</span>
+                    </div>
+                    {/* Active indicator bar */}
+                    <div className="w-full h-0.5 rounded-full bg-black/10 overflow-hidden mt-0.5">
+                      <div
+                        className={`h-full transition-all duration-300 rounded-full ${
+                          isActive ? 'bg-white w-full' : 'w-0'
+                        }`}
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+        </div>
+      </section>
+
+      {/* Feature A: Farmer-Friendly Quick-Start Workflow */}
+      <section className="space-y-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg neo-inset flex items-center justify-center text-[#52785B]">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#26352B]">
+              {t('dashboard.workflow_title')}
+            </h2>
+          </div>
+          <p className="text-xs sm:text-sm text-[#69776D] mt-1">
+            {t('dashboard.workflow_subtitle')}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          {workflowSteps.map((step, idx) => {
+            const Icon = step.icon;
+            return (
+              <button
+                key={idx}
+                onClick={() => onNavigate(step.tab)}
+                className="neo-card p-4 text-left transition-all hover:scale-[1.02] active:scale-[0.98] group flex flex-col justify-between h-full bg-[#E9EEE8] border border-transparent hover:border-[#52785B]/40 cursor-pointer"
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="w-7 h-7 rounded-full bg-[#52785B] text-white text-xs font-bold flex items-center justify-center shadow-sm">
+                      {step.num}
+                    </span>
+                    <Icon className="w-4 h-4 text-[#52785B] group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                  <h3 className="text-sm font-bold text-[#26352B] leading-snug group-hover:text-[#304C38]">
+                    {step.title}
+                  </h3>
+                  <p className="text-[11px] text-[#69776D] leading-relaxed">
+                    {step.desc}
+                  </p>
+                </div>
+                <div className="pt-3 mt-2 border-t border-[#d8e0d6] flex items-center justify-between text-[11px] font-semibold text-[#52785B]">
+                  <span>{t('common.next')}</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -146,17 +351,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <h2 className="text-xl font-bold text-[#26352B]">
-              {t('snapshot_title')}
+              {t('dashboard.snapshot_title')}
             </h2>
             <p className="text-xs text-[#69776D]">
-              {t('snapshot_subtitle')}
+              {t('dashboard.snapshot_subtitle')}
             </p>
           </div>
           <button
             onClick={() => onNavigate('market')}
             className="text-xs font-semibold text-[#52785B] hover:underline flex items-center gap-1"
           >
-            <span>{t('full_mandi_analytics')}</span>
+            <span>{t('dashboard.full_mandi_analytics')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -261,10 +466,174 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         ) : null}
       </section>
 
+      {/* Agricultural Life Cycle & Platform Capabilities Gallery */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#52785B]/15 text-[#304C38] text-xs font-semibold mb-1">
+              <Sparkles className="w-3.5 h-3.5 text-[#52785B]" />
+              <span>{t('dashboard.gallery_title')}</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#26352B]">
+              {t('dashboard.gallery_title')}
+            </h2>
+            <p className="text-xs sm:text-sm text-[#69776D] mt-0.5">
+              {t('dashboard.gallery_subtitle')}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Crop Care & Quality */}
+          <div
+            onClick={() => {
+              setActiveImageIdx(2);
+              onNavigate('calculator');
+            }}
+            className="neo-card p-3 rounded-2xl flex flex-col justify-between group hover:border-[#52785B]/50 cursor-pointer transition-all hover:scale-[1.01] bg-[#E9EEE8]"
+          >
+            <div className="space-y-2.5">
+              <AgriImage
+                name="crop_seedling_sprout"
+                alt={t('dashboard.img_sprout_title')}
+                aspectRatio="aspect-[16/10]"
+                className="rounded-xl shadow-xs border border-[#d8e0d6]"
+              />
+              <div className="px-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#52785B]">
+                    १. {t('common.verified')}
+                  </span>
+                  <Sprout className="w-3.5 h-3.5 text-[#52785B]" />
+                </div>
+                <h3 className="text-sm font-bold text-[#26352B] group-hover:text-[#304C38] mt-0.5">
+                  {t('dashboard.img_sprout_title')}
+                </h3>
+                <p className="text-xs text-[#69776D] mt-1 leading-relaxed">
+                  {t('dashboard.img_sprout_desc')}
+                </p>
+              </div>
+            </div>
+            <div className="pt-3 mt-2 border-t border-[#d8e0d6] px-1 flex items-center justify-between text-xs font-semibold text-[#52785B]">
+              <span>{t('dashboard.btn_calculator')}</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+
+          {/* Card 2: Field Operations & Harvesting */}
+          <div
+            onClick={() => {
+              setActiveImageIdx(1);
+              onNavigate('calculator');
+            }}
+            className="neo-card p-3 rounded-2xl flex flex-col justify-between group hover:border-[#52785B]/50 cursor-pointer transition-all hover:scale-[1.01] bg-[#E9EEE8]"
+          >
+            <div className="space-y-2.5">
+              <AgriImage
+                name="tractor_harvest_farming"
+                alt={t('dashboard.img_tractor_title')}
+                aspectRatio="aspect-[16/10]"
+                className="rounded-xl shadow-xs border border-[#d8e0d6]"
+              />
+              <div className="px-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#52785B]">
+                    २. {t('common.verified')}
+                  </span>
+                  <Tractor className="w-3.5 h-3.5 text-[#52785B]" />
+                </div>
+                <h3 className="text-sm font-bold text-[#26352B] group-hover:text-[#304C38] mt-0.5">
+                  {t('dashboard.img_tractor_title')}
+                </h3>
+                <p className="text-xs text-[#69776D] mt-1 leading-relaxed">
+                  {t('dashboard.img_tractor_desc')}
+                </p>
+              </div>
+            </div>
+            <div className="pt-3 mt-2 border-t border-[#d8e0d6] px-1 flex items-center justify-between text-xs font-semibold text-[#52785B]">
+              <span>{t('dashboard.btn_calculator')}</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+
+          {/* Card 3: Storage & Infrastructure */}
+          <div
+            onClick={() => {
+              setActiveImageIdx(3);
+              onNavigate('storage');
+            }}
+            className="neo-card p-3 rounded-2xl flex flex-col justify-between group hover:border-[#52785B]/50 cursor-pointer transition-all hover:scale-[1.01] bg-[#E9EEE8]"
+          >
+            <div className="space-y-2.5">
+              <AgriImage
+                name="terraced_orchard_landscape"
+                alt={t('dashboard.img_storage_title')}
+                aspectRatio="aspect-[16/10]"
+                className="rounded-xl shadow-xs border border-[#d8e0d6]"
+              />
+              <div className="px-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#52785B]">
+                    ३. {t('common.verified')}
+                  </span>
+                  <Warehouse className="w-3.5 h-3.5 text-[#52785B]" />
+                </div>
+                <h3 className="text-sm font-bold text-[#26352B] group-hover:text-[#304C38] mt-0.5">
+                  {t('dashboard.img_storage_title')}
+                </h3>
+                <p className="text-xs text-[#69776D] mt-1 leading-relaxed">
+                  {t('dashboard.img_storage_desc')}
+                </p>
+              </div>
+            </div>
+            <div className="pt-3 mt-2 border-t border-[#d8e0d6] px-1 flex items-center justify-between text-xs font-semibold text-[#52785B]">
+              <span>{t('dashboard.btn_find_storage')}</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+
+          {/* Card 4: Profitable Market Sales */}
+          <div
+            onClick={() => {
+              setActiveImageIdx(0);
+              onNavigate('market');
+            }}
+            className="neo-card p-3 rounded-2xl flex flex-col justify-between group hover:border-[#52785B]/50 cursor-pointer transition-all hover:scale-[1.01] bg-[#E9EEE8]"
+          >
+            <div className="space-y-2.5">
+              <AgriImage
+                name="hero_green_fields"
+                alt={t('dashboard.img_market_title')}
+                aspectRatio="aspect-[16/10]"
+                className="rounded-xl shadow-xs border border-[#d8e0d6]"
+              />
+              <div className="px-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#52785B]">
+                    ४. {t('common.verified')}
+                  </span>
+                  <TrendingUp className="w-3.5 h-3.5 text-[#52785B]" />
+                </div>
+                <h3 className="text-sm font-bold text-[#26352B] group-hover:text-[#304C38] mt-0.5">
+                  {t('dashboard.img_market_title')}
+                </h3>
+                <p className="text-xs text-[#69776D] mt-1 leading-relaxed">
+                  {t('dashboard.img_market_desc')}
+                </p>
+              </div>
+            </div>
+            <div className="pt-3 mt-2 border-t border-[#d8e0d6] px-1 flex items-center justify-between text-xs font-semibold text-[#52785B]">
+              <span>{t('dashboard.btn_explore_market')}</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How SevaSathi Helps (3 Core Pillars) */}
       <section className="space-y-4">
         <h2 className="text-xl font-bold text-[#26352B]">
-          {t('pillars_title')}
+          {t('dashboard.pillars_title')}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <NeomorphicCard className="space-y-3">
@@ -272,10 +641,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <BarChart3 className="w-5 h-5" />
             </div>
             <h3 className="text-base font-bold text-[#26352B]">
-              {t('pillar_1_title')}
+              {t('dashboard.pillar_1_title')}
             </h3>
             <p className="text-xs text-[#69776D] leading-relaxed">
-              {t('pillar_1_desc')}
+              {t('dashboard.pillar_1_desc')}
             </p>
           </NeomorphicCard>
 
@@ -284,10 +653,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <MapPin className="w-5 h-5" />
             </div>
             <h3 className="text-base font-bold text-[#26352B]">
-              {t('pillar_2_title')}
+              {t('dashboard.pillar_2_title')}
             </h3>
             <p className="text-xs text-[#69776D] leading-relaxed">
-              {t('pillar_2_desc')}
+              {t('dashboard.pillar_2_desc')}
             </p>
           </NeomorphicCard>
 
@@ -296,10 +665,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               <Scale className="w-5 h-5" />
             </div>
             <h3 className="text-base font-bold text-[#26352B]">
-              {t('pillar_3_title')}
+              {t('dashboard.pillar_3_title')}
             </h3>
             <p className="text-xs text-[#69776D] leading-relaxed">
-              {t('pillar_3_desc')}
+              {t('dashboard.pillar_3_desc')}
             </p>
           </NeomorphicCard>
         </div>
@@ -310,9 +679,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         <AlertCircle className="w-5 h-5 text-[#52785B] flex-shrink-0 mt-0.5" />
         <div className="text-xs text-[#69776D] leading-relaxed">
           <strong className="text-[#26352B] block mb-0.5">
-            {t('disclaimer_title')}
+            {t('dashboard.disclaimer_title')}
           </strong>
-          {t('disclaimer_desc')}
+          {t('dashboard.disclaimer_desc')}
         </div>
       </section>
     </div>

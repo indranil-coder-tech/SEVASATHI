@@ -12,8 +12,9 @@ import type {
   MidhStagingResponse,
 } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL
-  ? `${import.meta.env.VITE_API_BASE_URL}/api`
+const rawBase = (import.meta.env.VITE_API_BASE_URL || '').trim().replace(/\/+$/, '');
+const API_BASE = rawBase
+  ? (rawBase.endsWith('/api') ? rawBase : `${rawBase}/api`)
   : '/api';
 
 export async function fetchCrops(): Promise<CropOption[]> {

@@ -12,11 +12,13 @@ import {
   MapPin,
   Compass,
   Maximize2,
+  Info,
 } from 'lucide-react';
 import { NeomorphicCard } from '../components/NeomorphicCard';
 import { searchStorageFacilities } from '../services/api';
 import type { StorageFacility, StorageSearchResponse } from '../types';
 import { useApp } from '../context/AppContext';
+import { AgriImage } from '../components/AgriImage';
 
 const StorageMap = React.lazy(() =>
   import('../components/StorageMap').then((m) => ({ default: m.StorageMap }))
@@ -26,7 +28,11 @@ const MidhStagingRegistry = React.lazy(() =>
   import('../components/MidhStagingRegistry').then((m) => ({ default: m.MidhStagingRegistry }))
 );
 
-export const NearbyStorage: React.FC = () => {
+interface NearbyStorageProps {
+  initialCropFilter?: string;
+}
+
+export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter }) => {
   const { t, userLocation, requestLocation, formatCurrency, translateEntity } = useApp();
 
   // Storage page sub-tab: 'finder' (active facilities finder) vs 'midh_staging' (MIDH historical registry)
@@ -34,9 +40,27 @@ export const NearbyStorage: React.FC = () => {
 
   // Search parameters
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [cropFilter, setCropFilter] = useState<string>('all');
+  const [cropFilter, setCropFilter] = useState<string>(() => {
+    if (initialCropFilter && initialCropFilter !== 'all') {
+      const lower = initialCropFilter.toLowerCase();
+      if (['onion', 'soyabean', 'cotton', 'wheat', 'potato'].includes(lower)) {
+        return lower;
+      }
+    }
+    return 'all';
+  });
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [radiusKm, setRadiusKm] = useState<number>(25);
+
+  // Sync if initialCropFilter changes from navigation
+  useEffect(() => {
+    if (initialCropFilter && initialCropFilter !== 'all') {
+      const lower = initialCropFilter.toLowerCase();
+      if (['onion', 'soyabean', 'cotton', 'wheat', 'potato'].includes(lower)) {
+        setCropFilter(lower);
+      }
+    }
+  }, [initialCropFilter]);
 
   // Active search mode: 'text' (typed place/PIN), 'coordinates' (GPS), or 'demo' (pilot center)
   const [activeSearchMode, setActiveSearchMode] = useState<'text' | 'coordinates' | 'demo'>('demo');
@@ -522,6 +546,24 @@ export const NearbyStorage: React.FC = () => {
               <div className="flex flex-wrap justify-center gap-2 pt-2">
                 <button
                   onClick={() => {
+                    setSearchQuery('Lasalgaon');
+                    executeTextSearch('Lasalgaon');
+                  }}
+                  className="neo-btn-primary px-3 py-1.5 text-xs font-semibold"
+                >
+                  लासलगाव (Lasalgaon)
+                </button>
+                <button
+                  onClick={() => {
+                    setSearchQuery('Pimpalgaon');
+                    executeTextSearch('Pimpalgaon');
+                  }}
+                  className="neo-btn px-3 py-1.5 text-xs font-semibold text-[#52785B]"
+                >
+                  पिंपळगाव (Pimpalgaon)
+                </button>
+                <button
+                  onClick={() => {
                     setSearchQuery('Nashik');
                     executeTextSearch('Nashik');
                   }}
@@ -807,6 +849,100 @@ export const NearbyStorage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Feature B: Crop & Storage Compatibility Guidance Section */}
+      <section className="space-y-4 pt-6 border-t border-[#d8e0d6]">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg neo-inset flex items-center justify-center text-[#52785B]">
+              <Wind className="w-4 h-4" />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#26352B]">
+              {t('storage.guidance_title')}
+            </h2>
+          </div>
+          <p className="text-xs sm:text-sm text-[#69776D] mt-1">
+            {t('storage.guidance_subtitle')}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Card 1: Ventilated Onion Chawl */}
+          <NeomorphicCard className="p-5 space-y-4 flex flex-col justify-between">
+            <div className="space-y-3">
+              <AgriImage
+                name="storage_ventilated_chawl"
+                alt={t('storage.guidance_chawl_title')}
+                isIllustrative={true}
+                illustrativeLabel={t('storage.illustrative_tag')}
+                aspectRatio="aspect-[16/10]"
+                className="shadow-sm border border-[#d8e0d6]"
+              />
+              <h3 className="text-sm sm:text-base font-bold text-[#26352B]">
+                {t('storage.guidance_chawl_title')}
+              </h3>
+              <p className="text-xs text-[#69776D] leading-relaxed">
+                {t('storage.guidance_chawl_desc')}
+              </p>
+            </div>
+            <div className="pt-2 border-t border-[#d8e0d6] text-[11px] font-semibold text-[#52785B] flex items-center gap-1">
+              <span>✓</span> {t('storage.legend_chawl')}
+            </div>
+          </NeomorphicCard>
+
+          {/* Card 2: Refrigerated Cold Storage */}
+          <NeomorphicCard className="p-5 space-y-4 flex flex-col justify-between">
+            <div className="space-y-3">
+              <AgriImage
+                name="storage_crop_drying"
+                alt={t('storage.guidance_cold_title')}
+                isIllustrative={true}
+                illustrativeLabel={t('storage.illustrative_tag')}
+                aspectRatio="aspect-[16/10]"
+                className="shadow-sm border border-[#d8e0d6]"
+              />
+              <h3 className="text-sm sm:text-base font-bold text-[#26352B]">
+                {t('storage.guidance_cold_title')}
+              </h3>
+              <p className="text-xs text-[#69776D] leading-relaxed">
+                {t('storage.guidance_cold_desc')}
+              </p>
+            </div>
+            <div className="pt-2 border-t border-[#d8e0d6] text-[11px] font-semibold text-slate-700 flex items-center gap-1">
+              <span>ℹ</span> {t('storage.legend_cold')}
+            </div>
+          </NeomorphicCard>
+
+          {/* Card 3: General Godown / Warehouse */}
+          <NeomorphicCard className="p-5 space-y-4 flex flex-col justify-between">
+            <div className="space-y-3">
+              <AgriImage
+                name="storage_warehouse_godown"
+                alt={t('storage.guidance_godown_title')}
+                isIllustrative={true}
+                illustrativeLabel={t('storage.illustrative_tag')}
+                aspectRatio="aspect-[16/10]"
+                className="shadow-sm border border-[#d8e0d6]"
+              />
+              <h3 className="text-sm sm:text-base font-bold text-[#26352B]">
+                {t('storage.guidance_godown_title')}
+              </h3>
+              <p className="text-xs text-[#69776D] leading-relaxed">
+                {t('storage.guidance_godown_desc')}
+              </p>
+            </div>
+            <div className="pt-2 border-t border-[#d8e0d6] text-[11px] font-semibold text-[#304C38] flex items-center gap-1">
+              <span>✓</span> {t('storage.legend_warehouse')}
+            </div>
+          </NeomorphicCard>
+        </div>
+
+        {/* References citation */}
+        <div className="p-3.5 rounded-xl neo-inset bg-[#E9EEE8] text-[11px] text-[#69776D] flex items-center gap-2">
+          <Info className="w-4 h-4 text-[#52785B] flex-shrink-0" />
+          <span>{t('storage.guidance_sources_note')}</span>
+        </div>
+      </section>
         </>
       )}
     </div>

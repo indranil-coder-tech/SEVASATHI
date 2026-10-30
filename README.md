@@ -83,10 +83,12 @@ SevaSathi implements a consistent, soft Neomorphism visual language:
   - Python 3.14 + FastAPI + Uvicorn
   - Pandas & NumPy for price slicing and aggregation
   - Pydantic v2 for strict request/response data contracts
-  - Pytest test suite (14 unit and integration tests passing)
-- **Data Layers**:
+  - Pytest test suite (40 unit and integration tests passing)
+- **Data & Asset Layers**:
   - `backend/data/mandi_prices_maharashtra.csv`: 624 historical daily mandi price and arrival records formatted after AGMARKNET feeds.
   - `backend/data/storage_facilities_maharashtra.csv`: 12 verified storage facilities across Nashik, Pune, Ahmednagar, and Solapur sourced from WDRA, MSWC, and NHB records.
+  - `frontend/public/images/agriculture/`: Authentic real-world agricultural photographs (WebP + optimized JPG fallbacks) of Maharashtra onion farmers, wholesale APMC mandis, naturally ventilated chawls, WDRA warehouses, and scale check-ins.
+  - `frontend/public/images/agriculture/ATTRIBUTIONS.md`: Complete legal attribution and licensing record (CC BY-SA 4.0, CC BY 2.0, CC BY-SA 3.0).
 
 ---
 

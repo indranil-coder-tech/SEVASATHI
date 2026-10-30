@@ -14,11 +14,13 @@ import {
   AlertCircle,
   Building2,
   Tag,
+  Warehouse,
 } from 'lucide-react';
 import { NeomorphicCard } from '../components/NeomorphicCard';
 import { fetchMarketHierarchy, fetchMarketPrices } from '../services/api';
 import type { MarketPriceResponse } from '../types';
 import { useApp } from '../context/AppContext';
+import { AgriImage } from '../components/AgriImage';
 
 const PriceChart = React.lazy(() =>
   import('../components/PriceChart').then((m) => ({ default: m.PriceChart }))
@@ -31,10 +33,12 @@ interface MarketIntelligenceProps {
     currentPrice: number;
     expectedFuturePrice: number;
   }) => void;
+  onNavigateToStorage?: (crop: string) => void;
 }
 
 export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
   onNavigateToCalculator,
+  onNavigateToStorage,
 }) => {
   const {
     t,
@@ -234,8 +238,8 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
     <div className="space-y-6 sm:space-y-8 animate-fade-in">
       {/* Header & Controls */}
       <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+          <div className="lg:col-span-8 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl sm:text-3xl font-extrabold text-[#26352B]">
                 {t('market.page_title')}
@@ -244,9 +248,25 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
                 {t('market.feed_badge')}
               </span>
             </div>
-            <p className="text-xs sm:text-sm text-[#69776D] mt-1">
+            <p className="text-xs sm:text-sm text-[#69776D] leading-relaxed">
               {t('market.page_subtitle')}
             </p>
+          </div>
+
+          <div className="lg:col-span-4">
+            <AgriImage
+              name="market_mandi_trading"
+              alt={t('market.context_image_alt')}
+              caption={t('market.context_image_caption')}
+              aspectRatio="aspect-[16/9] lg:aspect-[16/8]"
+              className="max-h-36 shadow-sm border border-[#d8e0d6]"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-xs text-[#69776D]">
+            {t('market.hierarchy_subtitle')}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
@@ -466,6 +486,12 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
             <button
+              onClick={() => setMode('demo')}
+              className="neo-btn px-4 py-2 text-xs font-semibold text-[#26352B] flex items-center gap-1.5"
+            >
+              <span>{t('market.btn_switch_demo')}</span>
+            </button>
+            <button
               onClick={loadMarketData}
               className="neo-btn px-4 py-2 text-xs font-semibold text-[#26352B]"
             >
@@ -500,6 +526,50 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
               <span className="px-2 py-0.5 rounded-md font-bold bg-white text-[#304C38] border border-[#52785B]/20">
                 {marketData.mode === 'demo' ? t('market.demo_badge') : t('market.agmarknet_verified')}
               </span>
+            </div>
+          </div>
+
+          {/* Contextual Action Bar — Connected Quick-Start Journey */}
+          <div className="p-3.5 sm:p-4 rounded-2xl neo-card bg-gradient-to-r from-[#E9EEE8] via-[#e4ede2] to-[#E9EEE8] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-l-4 border-[#52785B]">
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-bold text-[#26352B]">
+                {translateEntity('commodity', marketData.commodity)} @ {translateEntity('market', marketData.market)}:{' '}
+                <span className="text-[#304C38]">{formatCurrency(marketData.latest_modal_price)} / q</span>
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+              {onNavigateToStorage && (
+                <button
+                  onClick={() => onNavigateToStorage(marketData.commodity)}
+                  className="neo-btn px-3 py-1.5 text-xs font-semibold text-[#304C38] flex items-center gap-1.5 flex-1 sm:flex-none justify-center"
+                >
+                  <Warehouse className="w-3.5 h-3.5 text-[#52785B]" />
+                  <span>{t('market.action_find_storage_for_crop', { crop: translateEntity('commodity', marketData.commodity) })}</span>
+                </button>
+              )}
+
+              {onNavigateToCalculator && (
+                <button
+                  onClick={() => {
+                    const futureP =
+                      marketData.forecast_points.length > 0
+                        ? Math.round(marketData.forecast_points[marketData.forecast_points.length - 1].modal_price)
+                        : Math.round(marketData.latest_modal_price * 1.2);
+                    onNavigateToCalculator({
+                      crop: marketData.commodity,
+                      mandi: marketData.market,
+                      currentPrice: marketData.latest_modal_price,
+                      expectedFuturePrice: futureP,
+                    });
+                  }}
+                  className="neo-btn-primary px-3.5 py-1.5 text-xs font-semibold flex items-center gap-1.5 flex-1 sm:flex-none justify-center shadow-sm"
+                >
+                  <Calculator className="w-3.5 h-3.5" />
+                  <span>{t('market.action_calculate_for_crop', { price: marketData.latest_modal_price })}</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              )}
             </div>
           </div>
 

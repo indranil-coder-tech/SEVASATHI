@@ -14,6 +14,7 @@ import { fetchDataSources, fetchStatewiseAggregates } from '../services/api';
 import type { DataSourceRecord, StateAggregateResponse } from '../types';
 import { useAppContext } from '../context/AppContext';
 import { formatNumber } from '../utils/formatters';
+import { AgriImage } from '../components/AgriImage';
 
 export const About: React.FC = () => {
   const { t, language } = useAppContext();
@@ -82,6 +83,23 @@ export const About: React.FC = () => {
           <p>
             {t('about.dilemma_intro')}
           </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-1">
+            <AgriImage
+              name="rural_maharashtra_harvest"
+              alt="Harvesting operations in rural Maharashtra"
+              caption="Peak harvest season in rural Maharashtra often creates market gluts and liquidity stress"
+              aspectRatio="aspect-[16/10]"
+              className="shadow-sm border border-[#d8e0d6]"
+            />
+            <AgriImage
+              name="tractor_harvest_farming"
+              alt="Modern mechanization and field operations in rural Maharashtra"
+              caption="Modern mechanized farming and strategic post-harvest planning minimize distress sales"
+              aspectRatio="aspect-[16/10]"
+              className="shadow-sm border border-[#d8e0d6]"
+            />
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
             <div className="p-3.5 rounded-xl neo-inset bg-[#E9EEE8] space-y-1.5">

@@ -103,3 +103,48 @@
   border-radius: 16px;
   z-index: 10;
 }
+
+/* Accessible reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Print Optimization for Farmer Decision Summary */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #111827 !important;
+    font-size: 11pt !important;
+  }
+
+  nav, footer, .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .neo-card, .neo-inset {
+    box-shadow: none !important;
+    border: 1px solid #d1d5db !important;
+    background: #ffffff !important;
+  }
+
+  /* Page break rules */
+  .page-break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+@media screen {
+  .print-only {
+    display: none;
+  }
+}

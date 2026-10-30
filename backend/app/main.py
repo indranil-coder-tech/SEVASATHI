@@ -19,9 +19,13 @@ app = FastAPI(
 )
 
 # Configure allowed CORS origins from environment (prevent wildcard with credentials)
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
-if allowed_origins_env.strip():
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "").strip()
+if allowed_origins_env == "*":
+    allowed_origins = ["*"]
+    allow_credentials = False
+elif allowed_origins_env:
     allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+    allow_credentials = True
 else:
     allowed_origins = [
         "http://localhost:5173",
@@ -31,14 +35,29 @@ else:
         "http://localhost:8000",
         "http://127.0.0.1:8000",
     ]
+    allow_credentials = True
+
+# Also allow cloud staging/preview origins (Vercel, Render, Railway, Netlify) when in default dev/preview mode
+allow_origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX", r"https://.*(vercel\.app|netlify\.app|onrender\.com|railway\.app)") if not allowed_origins_env else None
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_origin_regex=allow_origin_regex,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/", tags=["Health"])
+def root():
+    return {
+        "status": "online",
+        "service": "SevaSathi Agricultural Decision Engine API",
+        "version": "1.1.0",
+        "docs": "/docs",
+        "health": "/api/health"
+    }
 
 @app.get("/api/health", tags=["Health"])
 def health_check():
@@ -182,3 +201,10 @@ def calculate_strategies(payload: CalculatorRequest):
         return evaluate_sell_or_store(payload)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Calculation error: {str(e)}")
+
+if __name__ == "__main__":
+    import uvicorn
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run("app.main:app", host=host, port=port, reload=False)
+
