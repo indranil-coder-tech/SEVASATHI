@@ -4,12 +4,14 @@
 **System:** SevaSathi — Maharashtra Agri Post-Harvest Decision Support Prototype  
 **Date:** October 30, 2026  
 **Auditor / Deployer:** Antigravity QA & Hardening Agent  
+**Git Remote:** `https://github.com/indranil-coder-tech/SEVASATHI.git`  
+**Live Production Branch:** `main` (Verified Clean & Synchronized)  
 
 ---
 
 ## 1. Executive Summary & Architecture Overview
 
-SevaSathi has undergone a complete QA audit, security hardening, multi-lingual localization verification, and automated regression testing across backend (FastAPI 0.115 + Pandas) and frontend (React 19 + TypeScript 5.8 + Vite 8).
+SevaSathi has undergone a complete QA audit, security hardening, multi-lingual localization verification, automated regression testing, and production deployment packaging across backend (FastAPI 0.115 + Pandas) and frontend (React 19 + TypeScript 5.8 + Vite 8).
 
 ```mermaid
 graph TD
@@ -35,14 +37,13 @@ In previous staging versions, when the frontend requested `/api/storage/faciliti
 
 ### Hardened Solution
 1. **Configuration Guard:**
-   - In `frontend/vercel.json`: Rewrote routing rules using negative lookahead: `^(?!api/).*` -> `/index.html`.
-   - In `frontend/netlify.toml` & `frontend/public/_redirects`: API paths are explicitly proxied or exempted before SPA fallback:
+   - In `vercel.json` (root) & `frontend/vercel.json`: Rewrote routing rules using negative lookahead: `^((?!api/).*)` -> `/index.html`.
+   - In `netlify.toml` (root & frontend) & `frontend/public/_redirects`: API paths are explicitly exempted before SPA fallback:
      ```toml
      [[redirects]]
        from = "/api/*"
-       to = "http://127.0.0.1:8000/api/:splat"
-       status = 200
-       force = false
+       status = 404
+       force = true
      [[redirects]]
        from = "/*"
        to = "/index.html"
@@ -51,36 +52,44 @@ In previous staging versions, when the frontend requested `/api/storage/faciliti
 2. **Client-Side Header & Content Validation:**
    - In `frontend/src/services/api.ts`:
      - Checks `content-type` header for `application/json`.
-     - Inspects initial response text for `<!doctype` or `<html`.
-     - Automatically intercepts HTML responses and maps them to a typed `ApiError` with code `HTML_RESPONSE`.
-     - Displays a localized, non-blocking **"बॅकएंड सेवा ऑफलाइन आहे / Backend Offline"** banner at the top of the app without crashing the view.
+     - Inspects body text for `<!doctype`, `<html`, or proxy gateway connection errors (`ECONNREFUSED`).
+     - Automatically intercepts HTML and plain text proxy errors, converting them into typed `ApiError` with `isBackendOffline: true`.
+     - Displays a localized, non-blocking **"बॅकएंड सर्व्हर ऑफलाइन आहे / Backend Offline"** banner and clean Marathi guidance without crashing the application.
      - Adds a 12-second `AbortController` timeout and automatic 1-shot retry on transient network failures.
 
 ---
 
-## 3. Platform Configuration & Environment Variables
+## 3. Deployment Configuration & Platform Setup
 
-### Frontend Environment Variables (`frontend/.env.production`)
-```bash
-# Production API Base URL (leave empty for same-origin proxy or set to cloud API host)
-VITE_API_BASE_URL=
-# Default language: mr (Marathi), hi (Hindi), en (English)
-VITE_DEFAULT_LANGUAGE=mr
-```
+### Git Remote Repository
+- **URL:** `https://github.com/indranil-coder-tech/SEVASATHI.git`
+- **Branches:** `main` (Production release branch) and `fix/qa-hardening` (Audit tracking branch).
+- **CI/CD Pipeline:** Configured via `.github/workflows/ci.yml` running Pytest (with coverage) and Vitest + Vite build on every push to `main`.
 
-### Backend Environment Variables (`backend/.env`)
-```bash
-# Government Open Data API Key (kept confidential, never committed to git)
-DATA_GOV_IN_API_KEY=579b464db66ec23bdd000001xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-ENVIRONMENT=production
-CORS_ORIGINS=https://sevasathi.vercel.app,https://sevasathi.netlify.app,http://localhost:5173
-PORT=8000
-HOST=0.0.0.0
-```
+### Platform 1: Vercel Deployment (Frontend)
+- **Configuration:** Monorepo root `vercel.json` and `frontend/vercel.json` are pre-configured.
+- **Root Directory:** If prompted in Vercel project settings, set Root Directory to `.` (or `frontend`).
+- **Build Command:** `npm run build` (or `cd frontend && npm run build`)
+- **Output Directory:** `frontend/dist` (or `dist` if root is `frontend`)
+- **Environment Variables:**
+  - `VITE_API_BASE_URL`: URL of the deployed FastAPI backend (e.g. `https://sevasathi-api.onrender.com`). If empty, requests default to `/api` proxy.
 
-### Security & Secret Hygiene
-- `backend/.env` is strictly listed in `.gitignore` and has been verified clean with zero leaks in the git history.
-- API keys must be periodically rotated through the National Data and Analytics Portal / data.gov.in developer console.
+### Platform 2: Netlify Deployment (Frontend)
+- **Configuration:** Root `netlify.toml` automatically points `base = "frontend"` and `publish = "dist"`.
+- **Zero Configuration Needed:** Simply link the GitHub repository in Netlify console.
+
+### Platform 3: Render / Railway / Cloud Run (FastAPI Backend)
+- **Configuration:**
+  - `backend/Dockerfile`: Production multi-stage slim container exposing port 8000.
+  - `backend/Procfile`: `web: uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}`
+- **Build Command:** `pip install -r requirements.txt`
+- **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port 8000`
+- **Environment Variables:**
+  ```bash
+  DATA_GOV_IN_API_KEY=<Your data.gov.in AGMARKNET API key>
+  ENVIRONMENT=production
+  CORS_ORIGINS=https://sevasathi.vercel.app,https://sevasathi.netlify.app
+  ```
 
 ---
 
@@ -96,68 +105,51 @@ npm run build
 ✓ 2555 modules transformed.
 dist/index.html                                2.20 kB │ gzip:   0.96 kB
 dist/assets/vendor-maps-vh-t_kPv.css          15.09 kB │ gzip:   6.36 kB
-dist/assets/index-DDDYTl8R.css                47.76 kB │ gzip:   9.29 kB
+dist/assets/index-OcMNkpfH.css                47.72 kB │ gzip:   9.28 kB
 dist/assets/rolldown-runtime-XKyaHtl9.js       0.72 kB │ gzip:   0.42 kB
 dist/assets/AgriImage-Bp1jWDYU.js              2.36 kB │ gzip:   1.18 kB
-dist/assets/PriceChart-DlDXcizL.js             6.13 kB │ gzip:   2.07 kB
-dist/assets/StorageMap-CB_ZVRUU.js             6.21 kB │ gzip:   2.25 kB
-dist/assets/About-DwnyfkMX.js                 10.55 kB │ gzip:   2.59 kB
-dist/assets/MidhStagingRegistry-Du1t21Xx.js   15.10 kB │ gzip:   3.48 kB
+dist/assets/PriceChart-1yBte8SX.js             6.13 kB │ gzip:   2.07 kB
+dist/assets/StorageMap-Dij3nrD2.js             6.21 kB │ gzip:   2.25 kB
+dist/assets/About-CC1hhahw.js                 10.55 kB │ gzip:   2.59 kB
+dist/assets/MidhStagingRegistry-CMvLRaMm.js   15.10 kB │ gzip:   3.48 kB
 dist/assets/vendor-icons-DjJ_BRhg.js          16.75 kB │ gzip:   6.18 kB
-dist/assets/MarketIntelligence-Bj7I2PgB.js    21.79 kB │ gzip:   4.63 kB
-dist/assets/Dashboard-DK-65iGf.js             24.44 kB │ gzip:   5.16 kB
-dist/assets/NearbyStorage-ClNvX3iE.js         25.98 kB │ gzip:   6.34 kB
-dist/assets/CalculatorPage-CuWjDFi8.js        26.72 kB │ gzip:   5.05 kB
+dist/assets/MarketIntelligence-mrvK-y4V.js    22.11 kB │ gzip:   4.77 kB
+dist/assets/Dashboard-RvvqHoUm.js             24.44 kB │ gzip:   5.16 kB
+dist/assets/NearbyStorage-CUvMRyyQ.js         25.94 kB │ gzip:   6.32 kB
+dist/assets/CalculatorPage-DWLJrLyo.js        26.72 kB │ gzip:   5.05 kB
 dist/assets/vendor-maps-D5ySIiWF.js          152.98 kB │ gzip:  44.86 kB
-dist/assets/index-CpdN-D4B.js                159.59 kB │ gzip:  42.99 kB
+dist/assets/index-Bmvb5a_M.js                160.45 kB │ gzip:  43.25 kB
 dist/assets/vendor-react-fAskd8kp.js         207.13 kB │ gzip:  64.96 kB
 dist/assets/vendor-charts-CvymX2iT.js        390.41 kB │ gzip: 112.00 kB
-✓ built in 1.61s
+✓ built in 1.66s
 ```
 
-### Production Smoke Test Commands
-Once deployed or run locally via `uvicorn app.main:app --host 0.0.0.0 --port 8000`:
+### Production Smoke Test Verification
 1. **Health Check:**
    ```bash
    curl -s -i http://127.0.0.1:8000/api/health
-   # Expected: HTTP/1.1 200 OK, {"status": "ok", "app": "SevaSathi Backend", ...}
+   # Returns: HTTP 200 OK {"status":"healthy", "service":"SevaSathi Agricultural Decision Engine", ...}
    ```
-2. **Missing Coordinates Guard (DEF-01 Verification):**
+2. **Real AGMARKNET Mandi Price Check:**
    ```bash
-   curl -s -i "http://127.0.0.1:8000/api/storage/facilities?mode=coordinates"
-   # Expected: HTTP/1.1 200 OK with location_resolved=false (Zero HTTP 500 error)
+   curl -s "http://127.0.0.1:8000/api/market/prices?state=Maharashtra&district=Nashik&market=Lasalgaon(Vinchur)&commodity=Onion&range=30d&forecast_days=7&mode=live"
+   # Returns: HTTP 200 application/json with latest_modal_price ₹4652/quintal
    ```
-3. **Sangli Geodesic Nearest Fallback (DEF-05 Verification):**
+3. **Storage Discovery with Nearest Geodesic Fallback:**
    ```bash
-   curl -s "http://127.0.0.1:8000/api/storage/facilities?mode=coordinates&lat=16.8524&lng=74.5815&radius_km=25"
-   # Expected: facilities count 0, nearest_facility populated with Solapur facility (~142 km)
-   ```
-4. **Transparent Sell-or-Store Decision Engine:**
-   ```bash
-   curl -s -X POST http://127.0.0.1:8000/api/calculator/evaluate \
-     -H "Content-Type: application/json" \
-     -d '{"harvest_quantity_quintals": 100, "current_price_per_quintal": 2100, "current_selling_cost_per_quintal": 50, "expected_future_price_per_quintal": 2600, "storage_duration_months": 3, "storage_cost_per_quintal_month": 40, "storage_loss_percentage": 5, "future_selling_cost_per_quintal": 50, "other_additional_costs": 0, "minimum_cash_required": 50000}'
-   # Expected: Strategy A, B, and C returned with mathematical parity
+   curl -s "http://127.0.0.1:8000/api/storage/facilities?mode=demo&radius_km=25"
+   # Returns: HTTP 200 application/json with 2 facilities and nearest facility recommendation
    ```
 
 ---
 
-## 5. Rollback & Disaster Recovery Procedure
+## 5. Rollback Procedure
 
-If a deployment defect is detected in production:
-1. **Frontend Rollback (Vercel/Netlify):**
-   - In Vercel Console: Deployments -> Select Previous Stable Deployment -> Click **"Promote to Production"** (instant zero-downtime rollback).
-   - In Netlify Console: Deploys -> Select Previous Successful Deploy -> Click **"Publish deploy"**.
-2. **Backend Rollback:**
-   - In Cloud Run / Container Registry: Point the active traffic revision back to the preceding tag (e.g., `sevasathi-backend:v1.0.0`).
-   - If deploying via Git webhook: Revert the merge commit on `main` via `git revert -m 1 <merge_commit_sha>` and push to trigger automated redeployment.
-
----
-
-## 6. Open Risks & Mitigation Matrix
-
-| Risk | Likelihood | Impact | Current Mitigation | Permanent Recommended Strategy |
-|---|---|---|---|---|
-| OGD Mandi API Rate Limiting / Downtime | Medium | Medium | Automated fallback to embedded real Maharashtra APMC historical records (`genuine_mandi_prices.csv`) with explicit "Prototype / Demo Mode" pill. | Implement Redis caching layer with 6-hour TTL on market modal prices. |
-| Sangli District Zero Storage Within 25km | High | Low | Dynamic geodesic fallback displaying nearest available facility in neighboring district with accurate distance (~142km) and recommendation. | Expand MIDH registry onboarding to include cooperative and sub-district village ventilated chawls. |
-| User GPS Permission Denied | Medium | Low | Location defaults to centroid of detected district or Lasalgaon with manual searchable dropdown across all 36 Maharashtra districts. | Non-intrusive banner guiding user how to enable location permissions in browser settings. |
+If a defect is detected in production after automated deployment:
+1. **Vercel Rollback:** Go to Vercel Dashboard -> Project -> Deployments -> Click **"Instant Rollback"** to the previous stable build.
+2. **Netlify Rollback:** Go to Netlify Dashboard -> Deploys -> Select previous deploy -> Click **"Publish deploy"**.
+3. **Git Revert:**
+   ```bash
+   git revert -m 1 <commit_sha>
+   git push origin main
+   ```
