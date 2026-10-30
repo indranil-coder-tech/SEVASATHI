@@ -1,21 +1,22 @@
-import os
 import json
-import time
-import math
 import logging
-import urllib.request
+import math
+import os
+import time
 import urllib.parse
-from datetime import datetime, timedelta, timezone
-from typing import List, Dict, Optional, Tuple, Any
+import urllib.request
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 import pandas as pd
 from dotenv import load_dotenv
 
 from app.models import (
-    PricePoint,
-    MarketPriceResponse,
     CropOption,
     MandiOption,
-    MarketHierarchyResponse
+    MarketHierarchyResponse,
+    MarketPriceResponse,
+    PricePoint,
 )
 
 # Load environment variables securely
@@ -30,7 +31,7 @@ DEMO_PRICES_CSV = os.path.join(DATA_DIR, "mandi_prices_demo.csv")
 LEGACY_PRICES_CSV = os.path.join(DATA_DIR, "mandi_prices_maharashtra.csv")
 
 # Known pilot geographic coordinates for benchmark Maharashtra mandis
-BENCHMARK_MANDI_COORDINATES: Dict[str, Tuple[float, float, str]] = {
+BENCHMARK_MANDI_COORDINATES: dict[str, tuple[float, float, str]] = {
     "lasalgaon": (20.1472, 74.2281, "Nashik"),
     "pimpalgaon": (20.1741, 73.9856, "Nashik"),
     "yeola": (20.0435, 74.4842, "Nashik"),
@@ -44,37 +45,69 @@ BENCHMARK_MANDI_COORDINATES: Dict[str, Tuple[float, float, str]] = {
 
 # Supported Indian states for high-level selector (Maharashtra prioritized)
 DEFAULT_STATES = [
-    "Maharashtra", "Gujarat", "Madhya Pradesh", "Karnataka", "Rajasthan",
-    "Punjab", "Haryana", "Uttar Pradesh", "Tamil Nadu", "Telangana",
-    "Andhra Pradesh", "Bihar", "West Bengal", "Odisha", "Keralam"
+    "Maharashtra",
+    "Gujarat",
+    "Madhya Pradesh",
+    "Karnataka",
+    "Rajasthan",
+    "Punjab",
+    "Haryana",
+    "Uttar Pradesh",
+    "Tamil Nadu",
+    "Telangana",
+    "Andhra Pradesh",
+    "Bihar",
+    "West Bengal",
+    "Odisha",
+    "Keralam",
 ]
+
 
 class GovMandiService:
     def __init__(self):
         self.api_key = os.getenv("DATA_GOV_IN_API_KEY", "").strip()
         self.endpoint = os.getenv("AGMARKNET_API_ENDPOINT", "").strip()
-        self.resource_id = os.getenv("DATA_GOV_IN_RESOURCE_ID", "9ef84268-d588-465a-a308-a864a43d0070").strip()
-        self.base_url = os.getenv("DATA_GOV_IN_BASE_URL", "https://api.data.gov.in/resource/").rstrip("/") + "/"
+        self.resource_id = os.getenv(
+            "DATA_GOV_IN_RESOURCE_ID", "9ef84268-d588-465a-a308-a864a43d0070"
+        ).strip()
+        self.base_url = (
+            os.getenv(
+                "DATA_GOV_IN_BASE_URL", "https://api.data.gov.in/resource/"
+            ).rstrip("/")
+            + "/"
+        )
         if not self.endpoint:
             self.endpoint = f"{self.base_url}{self.resource_id}"
-        
+
         try:
             self.ttl_seconds = int(os.getenv("MANDI_CACHE_TTL_SECONDS", "3600"))
         except ValueError:
             self.ttl_seconds = 3600
 
-        self._in_memory_cache: Dict[str, Tuple[float, Any]] = {}
+        self._in_memory_cache: dict[str, tuple[float, Any]] = {}
         self._ensure_storage_initialized()
 
     def _ensure_storage_initialized(self):
         os.makedirs(DATA_DIR, exist_ok=True)
         if not os.path.exists(GENUINE_PRICES_CSV):
             # Create genuine records file with headers
-            cols = ["date", "state", "district", "market", "commodity", "variety", "grade",
-                    "min_price", "max_price", "modal_price", "data_source", "retrieved_at"]
+            cols = [
+                "date",
+                "state",
+                "district",
+                "market",
+                "commodity",
+                "variety",
+                "grade",
+                "min_price",
+                "max_price",
+                "modal_price",
+                "data_source",
+                "retrieved_at",
+            ]
             pd.DataFrame(columns=cols).to_csv(GENUINE_PRICES_CSV, index=False)
 
-    def _get_from_cache(self, key: str) -> Optional[Any]:
+    def _get_from_cache(self, key: str) -> Any | None:
         if key in self._in_memory_cache:
             ts, val = self._in_memory_cache[key]
             if time.time() - ts < self.ttl_seconds:
@@ -86,27 +119,29 @@ class GovMandiService:
 
     def fetch_live_records(
         self,
-        state: Optional[str] = "Maharashtra",
-        district: Optional[str] = None,
-        market: Optional[str] = None,
-        commodity: Optional[str] = None,
-        variety: Optional[str] = None,
+        state: str | None = "Maharashtra",
+        district: str | None = None,
+        market: str | None = None,
+        commodity: str | None = None,
+        variety: str | None = None,
         limit: int = 1000,
-        offset: int = 0
-    ) -> List[Dict[str, Any]]:
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
         """
         Queries official data.gov.in resource with proper filters, headers, and timeouts.
         Handles rate limits, network timeouts, and JSON decoding errors safely.
         """
         if not self.api_key:
-            logger.warning("DATA_GOV_IN_API_KEY is not set. Cannot fetch from official API.")
+            logger.warning(
+                "DATA_GOV_IN_API_KEY is not set. Cannot fetch from official API."
+            )
             return []
 
-        params: Dict[str, str] = {
+        params: dict[str, str] = {
             "api-key": self.api_key,
             "format": "json",
             "limit": str(limit),
-            "offset": str(offset)
+            "offset": str(offset),
         }
         if state:
             params["filters[state]"] = state
@@ -123,7 +158,7 @@ class GovMandiService:
         endpoint_url = f"{self.endpoint}{sep}{urllib.parse.urlencode(params)}"
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "application/json"
+            "Accept": "application/json",
         }
 
         # Attempt query with retries
@@ -133,7 +168,9 @@ class GovMandiService:
                 req = urllib.request.Request(endpoint_url, headers=headers)
                 with urllib.request.urlopen(req, timeout=25) as resp:
                     if resp.status != 200:
-                        logger.warning(f"Official API returned status code {resp.status}")
+                        logger.warning(
+                            f"Official API returned status code {resp.status}"
+                        )
                         return []
                     body = resp.read().decode("utf-8")
                     data = json.loads(body)
@@ -144,19 +181,27 @@ class GovMandiService:
                         self.save_genuine_records(normalized)
                     return normalized
             except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as e:
-                logger.warning(f"Attempt {attempt+1} failed querying data.gov.in: {e}")
+                logger.warning(
+                    f"Attempt {attempt + 1} failed querying data.gov.in: {e}"
+                )
                 if attempt == max_attempts - 1:
-                    logger.error(f"Failed to query data.gov.in after {max_attempts} attempts: {e}")
+                    logger.error(
+                        f"Failed to query data.gov.in after {max_attempts} attempts: {e}"
+                    )
             except Exception as e:
                 logger.error(f"Unexpected error querying data.gov.in: {e}")
                 break
 
         return []
 
-    def _normalize_records(self, raw_records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _normalize_records(
+        self, raw_records: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         normalized = []
-        retrieval_iso = datetime.now(timezone.utc).isoformat()
-        source_label = f"Official data.gov.in API (AGMARKNET Resource {self.resource_id})"
+        retrieval_iso = datetime.now(UTC).isoformat()
+        source_label = (
+            f"Official data.gov.in API (AGMARKNET Resource {self.resource_id})"
+        )
 
         for r in raw_records:
             state = str(r.get("state") or r.get("State") or "").strip()
@@ -166,13 +211,19 @@ class GovMandiService:
             variety = str(r.get("variety") or r.get("Variety") or "Other").strip()
             grade = str(r.get("grade") or r.get("Grade") or "FAQ").strip()
 
-            raw_date = str(r.get("arrival_date") or r.get("Arrival_Date") or r.get("date") or "").strip()
+            raw_date = str(
+                r.get("arrival_date") or r.get("Arrival_Date") or r.get("date") or ""
+            ).strip()
             parsed_date = raw_date
             try:
                 if "/" in raw_date:
-                    parsed_date = datetime.strptime(raw_date, "%d/%m/%Y").strftime("%Y-%m-%d")
+                    parsed_date = datetime.strptime(raw_date, "%d/%m/%Y").strftime(
+                        "%Y-%m-%d"
+                    )
                 elif "-" in raw_date:
-                    parsed_date = datetime.strptime(raw_date[:10], "%Y-%m-%d").strftime("%Y-%m-%d")
+                    parsed_date = datetime.strptime(raw_date[:10], "%Y-%m-%d").strftime(
+                        "%Y-%m-%d"
+                    )
             except Exception:
                 parsed_date = raw_date
 
@@ -186,24 +237,26 @@ class GovMandiService:
             if modal_p <= 0 or not market or not commodity:
                 continue
 
-            normalized.append({
-                "date": parsed_date,
-                "state": state,
-                "district": district,
-                "market": market,
-                "commodity": commodity,
-                "variety": variety,
-                "grade": grade,
-                "min_price": min_p,
-                "max_price": max_p,
-                "modal_price": modal_p,
-                "data_source": source_label,
-                "retrieved_at": retrieval_iso
-            })
+            normalized.append(
+                {
+                    "date": parsed_date,
+                    "state": state,
+                    "district": district,
+                    "market": market,
+                    "commodity": commodity,
+                    "variety": variety,
+                    "grade": grade,
+                    "min_price": min_p,
+                    "max_price": max_p,
+                    "modal_price": modal_p,
+                    "data_source": source_label,
+                    "retrieved_at": retrieval_iso,
+                }
+            )
 
         return normalized
 
-    def save_genuine_records(self, records: List[Dict[str, Any]]):
+    def save_genuine_records(self, records: list[dict[str, Any]]):
         """
         Merges new records into genuine_mandi_prices.csv with deduplication on
         (date, state, district, market, commodity, variety) while preserving original text casing.
@@ -211,11 +264,26 @@ class GovMandiService:
         if not records:
             return
 
-        cols = ["date", "state", "district", "market", "commodity", "variety", "grade",
-                "min_price", "max_price", "modal_price", "data_source", "retrieved_at"]
+        cols = [
+            "date",
+            "state",
+            "district",
+            "market",
+            "commodity",
+            "variety",
+            "grade",
+            "min_price",
+            "max_price",
+            "modal_price",
+            "data_source",
+            "retrieved_at",
+        ]
 
         existing_df = pd.DataFrame(columns=cols)
-        if os.path.exists(GENUINE_PRICES_CSV) and os.path.getsize(GENUINE_PRICES_CSV) > 0:
+        if (
+            os.path.exists(GENUINE_PRICES_CSV)
+            and os.path.getsize(GENUINE_PRICES_CSV) > 0
+        ):
             try:
                 existing_df = pd.read_csv(GENUINE_PRICES_CSV)
             except Exception as e:
@@ -226,20 +294,28 @@ class GovMandiService:
 
         # Composite deduplication key without corrupting display casing
         dedup_col = (
-            combined["date"].astype(str).str.strip() + "_" +
-            combined["state"].astype(str).str.strip().str.lower() + "_" +
-            combined["district"].astype(str).str.strip().str.lower() + "_" +
-            combined["market"].astype(str).str.strip().str.lower() + "_" +
-            combined["commodity"].astype(str).str.strip().str.lower() + "_" +
-            combined["variety"].astype(str).str.strip().str.lower()
+            combined["date"].astype(str).str.strip()
+            + "_"
+            + combined["state"].astype(str).str.strip().str.lower()
+            + "_"
+            + combined["district"].astype(str).str.strip().str.lower()
+            + "_"
+            + combined["market"].astype(str).str.strip().str.lower()
+            + "_"
+            + combined["commodity"].astype(str).str.strip().str.lower()
+            + "_"
+            + combined["variety"].astype(str).str.strip().str.lower()
         )
         combined["_dedup_key"] = dedup_col
-        combined.drop_duplicates(subset=["_dedup_key"], keep="last", inplace=True)
-        combined.drop(columns=["_dedup_key"], inplace=True)
+        combined = combined.drop_duplicates(subset=["_dedup_key"], keep="last")
+        combined = combined.drop(columns=["_dedup_key"])
         combined.to_csv(GENUINE_PRICES_CSV, index=False)
 
     def load_genuine_dataframe(self) -> pd.DataFrame:
-        if os.path.exists(GENUINE_PRICES_CSV) and os.path.getsize(GENUINE_PRICES_CSV) > 0:
+        if (
+            os.path.exists(GENUINE_PRICES_CSV)
+            and os.path.getsize(GENUINE_PRICES_CSV) > 0
+        ):
             try:
                 df = pd.read_csv(GENUINE_PRICES_CSV)
                 if not df.empty:
@@ -249,7 +325,7 @@ class GovMandiService:
                 logger.warning(f"Error parsing genuine mandi prices CSV: {e}")
         return pd.DataFrame()
 
-    def get_records_for_state(self, state: str = "Maharashtra") -> List[Dict[str, Any]]:
+    def get_records_for_state(self, state: str = "Maharashtra") -> list[dict[str, Any]]:
         cache_key = f"state_records_{state.lower()}"
         cached = self._get_from_cache(cache_key)
         if cached is not None:
@@ -257,7 +333,7 @@ class GovMandiService:
 
         # Check local genuine dataset first
         df = self.load_genuine_dataframe()
-        state_records: List[Dict[str, Any]] = []
+        state_records: list[dict[str, Any]] = []
         if not df.empty:
             sub = df[df["state"].str.lower() == state.lower()]
             if not sub.empty:
@@ -275,10 +351,10 @@ class GovMandiService:
 
     def get_filter_hierarchy(
         self,
-        state: Optional[str] = "Maharashtra",
-        district: Optional[str] = None,
-        market: Optional[str] = None,
-        commodity: Optional[str] = None
+        state: str | None = "Maharashtra",
+        district: str | None = None,
+        market: str | None = None,
+        commodity: str | None = None,
     ) -> MarketHierarchyResponse:
         """
         Derives real administrative options (State -> District -> Mandi -> Commodity -> Variety)
@@ -311,7 +387,9 @@ class GovMandiService:
         active_district = district
         if active_district and active_district not in districts_set:
             # Check case-insensitive match
-            matched = next((d for d in districts if d.lower() == active_district.lower()), None)
+            matched = next(
+                (d for d in districts if d.lower() == active_district.lower()), None
+            )
             active_district = matched or (districts[0] if districts else None)
         elif not active_district and districts:
             # Default to Nashik if present, else first
@@ -332,11 +410,26 @@ class GovMandiService:
         # Selected market resolution
         active_market = market
         if active_market and active_market not in mandis_set:
-            matched_m = next((m for m in mandis if m.lower() == active_market.lower() or active_market.lower() in m.lower()), None)
+            matched_m = next(
+                (
+                    m
+                    for m in mandis
+                    if m.lower() == active_market.lower()
+                    or active_market.lower() in m.lower()
+                ),
+                None,
+            )
             active_market = matched_m or (mandis[0] if mandis else None)
         elif not active_market and mandis:
             # Default to Lasalgaon or Pimpalgaon if available, else first
-            fav = next((m for m in mandis if "lasalgaon" in m.lower() or "pimpalgaon" in m.lower()), mandis[0])
+            fav = next(
+                (
+                    m
+                    for m in mandis
+                    if "lasalgaon" in m.lower() or "pimpalgaon" in m.lower()
+                ),
+                mandis[0],
+            )
             active_market = fav
 
         # 4. Commodities for selected Mandi (or District)
@@ -345,10 +438,12 @@ class GovMandiService:
             d = str(r.get("district", "")).strip()
             m = str(r.get("market", "")).strip()
             c = str(r.get("commodity", "")).strip()
-            if active_market and m.lower() == active_market.lower():
-                if c:
-                    commodities_set.add(c)
-            elif active_district and d.lower() == active_district.lower():
+            if (
+                active_market
+                and m.lower() == active_market.lower()
+                or active_district
+                and d.lower() == active_district.lower()
+            ):
                 if c:
                     commodities_set.add(c)
             elif c:
@@ -358,7 +453,9 @@ class GovMandiService:
         # Selected commodity resolution
         active_commodity = commodity
         if active_commodity and active_commodity not in commodities_set:
-            matched_c = next((c for c in commodities if c.lower() == active_commodity.lower()), None)
+            matched_c = next(
+                (c for c in commodities if c.lower() == active_commodity.lower()), None
+            )
             active_commodity = matched_c or (commodities[0] if commodities else None)
         elif not active_commodity and commodities:
             active_commodity = "Onion" if "Onion" in commodities else commodities[0]
@@ -370,7 +467,11 @@ class GovMandiService:
             c = str(r.get("commodity", "")).strip()
             v = str(r.get("variety", "")).strip()
             if active_market and active_commodity:
-                if m.lower() == active_market.lower() and c.lower() == active_commodity.lower() and v:
+                if (
+                    m.lower() == active_market.lower()
+                    and c.lower() == active_commodity.lower()
+                    and v
+                ):
                     varieties_set.add(v)
             elif active_commodity and c.lower() == active_commodity.lower() and v:
                 varieties_set.add(v)
@@ -385,16 +486,16 @@ class GovMandiService:
             selected_state=active_state,
             selected_district=active_district,
             selected_mandi=active_market,
-            selected_commodity=active_commodity
+            selected_commodity=active_commodity,
         )
 
-    def get_mandis(self) -> List[MandiOption]:
+    def get_mandis(self) -> list[MandiOption]:
         """
         Derives mandi options dynamically from genuine government records.
         Preserves coordinates for known benchmark locations.
         """
         records = self.get_records_for_state("Maharashtra")
-        mandi_map: Dict[str, MandiOption] = {}
+        mandi_map: dict[str, MandiOption] = {}
 
         for r in records:
             market_name = str(r.get("market", "")).strip()
@@ -426,25 +527,89 @@ class GovMandiService:
                     state=state,
                     default_crop=crop,
                     latitude=lat or 19.5,
-                    longitude=lng or 75.0
+                    longitude=lng or 75.0,
                 )
 
         # Fallback to benchmark list if no live mandis loaded
         if not mandi_map:
             return [
-                MandiOption(id="lasalgaon", name="Lasalgaon (लासलगाव)", district="Nashik", state="Maharashtra", default_crop="onion", latitude=20.1472, longitude=74.2281),
-                MandiOption(id="pimpalgaon", name="Pimpalgaon Baswant (पिंपळगाव)", district="Nashik", state="Maharashtra", default_crop="onion", latitude=20.1741, longitude=73.9856),
-                MandiOption(id="yeola", name="Yeola (येवला)", district="Nashik", state="Maharashtra", default_crop="onion", latitude=20.0435, longitude=74.4842),
-                MandiOption(id="pune", name="Pune Gultekdi (पुणे)", district="Pune", state="Maharashtra", default_crop="onion", latitude=18.4965, longitude=73.8647),
-                MandiOption(id="solapur", name="Solapur (सोलापूर)", district="Solapur", state="Maharashtra", default_crop="onion", latitude=17.6599, longitude=75.9064),
-                MandiOption(id="ahmednagar", name="Ahmednagar (अहमदनगर)", district="Ahmednagar", state="Maharashtra", default_crop="onion", latitude=19.0952, longitude=74.7496),
-                MandiOption(id="latur", name="Latur (लातूर)", district="Latur", state="Maharashtra", default_crop="soyabean", latitude=18.4088, longitude=76.5604),
-                MandiOption(id="jalgaon", name="Jalgaon (जळगाव)", district="Jalgaon", state="Maharashtra", default_crop="cotton", latitude=21.0077, longitude=75.5626),
+                MandiOption(
+                    id="lasalgaon",
+                    name="Lasalgaon (लासलगाव)",
+                    district="Nashik",
+                    state="Maharashtra",
+                    default_crop="onion",
+                    latitude=20.1472,
+                    longitude=74.2281,
+                ),
+                MandiOption(
+                    id="pimpalgaon",
+                    name="Pimpalgaon Baswant (पिंपळगाव)",
+                    district="Nashik",
+                    state="Maharashtra",
+                    default_crop="onion",
+                    latitude=20.1741,
+                    longitude=73.9856,
+                ),
+                MandiOption(
+                    id="yeola",
+                    name="Yeola (येवला)",
+                    district="Nashik",
+                    state="Maharashtra",
+                    default_crop="onion",
+                    latitude=20.0435,
+                    longitude=74.4842,
+                ),
+                MandiOption(
+                    id="pune",
+                    name="Pune Gultekdi (पुणे)",
+                    district="Pune",
+                    state="Maharashtra",
+                    default_crop="onion",
+                    latitude=18.4965,
+                    longitude=73.8647,
+                ),
+                MandiOption(
+                    id="solapur",
+                    name="Solapur (सोलापूर)",
+                    district="Solapur",
+                    state="Maharashtra",
+                    default_crop="onion",
+                    latitude=17.6599,
+                    longitude=75.9064,
+                ),
+                MandiOption(
+                    id="ahmednagar",
+                    name="Ahmednagar (अहमदनगर)",
+                    district="Ahmednagar",
+                    state="Maharashtra",
+                    default_crop="onion",
+                    latitude=19.0952,
+                    longitude=74.7496,
+                ),
+                MandiOption(
+                    id="latur",
+                    name="Latur (लातूर)",
+                    district="Latur",
+                    state="Maharashtra",
+                    default_crop="soyabean",
+                    latitude=18.4088,
+                    longitude=76.5604,
+                ),
+                MandiOption(
+                    id="jalgaon",
+                    name="Jalgaon (जळगाव)",
+                    district="Jalgaon",
+                    state="Maharashtra",
+                    default_crop="cotton",
+                    latitude=21.0077,
+                    longitude=75.5626,
+                ),
             ]
 
         return list(mandi_map.values())
 
-    def get_crops(self) -> List[CropOption]:
+    def get_crops(self) -> list[CropOption]:
         """
         Derives available commodities dynamically from genuine government records.
         """
@@ -461,41 +626,60 @@ class GovMandiService:
         for p in priority:
             if p in crops_set:
                 crops_set.remove(p)
-                crop_options.append(CropOption(
-                    id=p.lower().replace(" ", "_"),
-                    name=p,
-                    category="Core Cash & Staple",
-                    is_pilot=(p == "Onion")
-                ))
+                crop_options.append(
+                    CropOption(
+                        id=p.lower().replace(" ", "_"),
+                        name=p,
+                        category="Core Cash & Staple",
+                        is_pilot=(p == "Onion"),
+                    )
+                )
 
         for c in sorted(list(crops_set)):
-            crop_options.append(CropOption(
-                id=c.lower().replace(" ", "_"),
-                name=c,
-                category="Government-Reported Mandi Commodity",
-                is_pilot=False
-            ))
+            crop_options.append(
+                CropOption(
+                    id=c.lower().replace(" ", "_"),
+                    name=c,
+                    category="Government-Reported Mandi Commodity",
+                    is_pilot=False,
+                )
+            )
 
         if not crop_options:
             return [
-                CropOption(id="onion", name="Onion (कांदा)", category="Vegetables & Cash Crop", is_pilot=True),
-                CropOption(id="soyabean", name="Soyabean (सोयाबीन)", category="Oilseeds", is_pilot=False),
-                CropOption(id="cotton", name="Cotton (कापूस)", category="Commercial Fiber", is_pilot=False),
+                CropOption(
+                    id="onion",
+                    name="Onion (कांदा)",
+                    category="Vegetables & Cash Crop",
+                    is_pilot=True,
+                ),
+                CropOption(
+                    id="soyabean",
+                    name="Soyabean (सोयाबीन)",
+                    category="Oilseeds",
+                    is_pilot=False,
+                ),
+                CropOption(
+                    id="cotton",
+                    name="Cotton (कापूस)",
+                    category="Commercial Fiber",
+                    is_pilot=False,
+                ),
             ]
         return crop_options
 
     def get_market_data(
         self,
-        crop: Optional[str] = None,
-        mandi_id: Optional[str] = None,
-        state: Optional[str] = None,
-        district: Optional[str] = None,
-        market: Optional[str] = None,
-        commodity: Optional[str] = None,
-        variety: Optional[str] = None,
+        crop: str | None = None,
+        mandi_id: str | None = None,
+        state: str | None = None,
+        district: str | None = None,
+        market: str | None = None,
+        commodity: str | None = None,
+        variety: str | None = None,
         time_range: str = "30d",
         forecast_days: int = 7,
-        mode: str = "live"
+        mode: str = "live",
     ) -> MarketPriceResponse:
         """
         Queries genuine government observations with NO SILENT FALLBACKS.
@@ -506,7 +690,9 @@ class GovMandiService:
         target_commodity = commodity or crop or "Onion"
         if "soya" in target_commodity.lower():
             target_commodity = "Soyabean"
-        elif "cotton" in target_commodity.lower() or "kapas" in target_commodity.lower():
+        elif (
+            "cotton" in target_commodity.lower() or "kapas" in target_commodity.lower()
+        ):
             target_commodity = "Cotton"
         elif "onion" in target_commodity.lower():
             target_commodity = "Onion"
@@ -518,7 +704,9 @@ class GovMandiService:
 
         # Handle Separated Demo Mode
         if mode == "demo":
-            return self._get_demo_data(target_commodity, target_market, time_range, forecast_days)
+            return self._get_demo_data(
+                target_commodity, target_market, time_range, forecast_days
+            )
 
         # ---------------------------------------------------------
         # PRODUCTION MODE: Genuine Data Path Only
@@ -530,23 +718,31 @@ class GovMandiService:
             df = self.load_genuine_dataframe()
 
         if df.empty:
-            raise ValueError(f"No official government records available in database for state {target_state}.")
+            raise ValueError(
+                f"No official government records available in database for state {target_state}."
+            )
 
         # Case-insensitive filtering
         sub_df = df[
-            (df["state"].str.lower() == target_state.lower()) &
-            (df["commodity"].str.lower() == target_commodity.lower())
+            (df["state"].str.lower() == target_state.lower())
+            & (df["commodity"].str.lower() == target_commodity.lower())
         ].copy()
 
         # Match market name strictly (e.g. "lasalgaon" matches "Lasalgaon(Vinchur)" or "Lasalgaon")
         matched_market_rows = sub_df[
-            sub_df["market"].str.lower().str.contains(target_market.lower()) |
-            (sub_df["market"].str.lower() == target_market.lower())
+            sub_df["market"].str.lower().str.contains(target_market.lower())
+            | (sub_df["market"].str.lower() == target_market.lower())
         ]
 
         # Only allow district match if target_market was specifically equal to district name or blank
-        if matched_market_rows.empty and target_district and (target_market.lower() == target_district.lower() or not target_market):
-            matched_market_rows = sub_df[sub_df["district"].str.lower() == target_district.lower()]
+        if (
+            matched_market_rows.empty
+            and target_district
+            and (target_market.lower() == target_district.lower() or not target_market)
+        ):
+            matched_market_rows = sub_df[
+                sub_df["district"].str.lower() == target_district.lower()
+            ]
 
         # STRICT NO SILENT FALLBACK:
         # Never substitute another market's prices if user asked for Cotton at Ahmednagar, etc.
@@ -563,7 +759,7 @@ class GovMandiService:
             if not var_match.empty:
                 sub_df = var_match
 
-        sub_df.sort_values(by="date", inplace=True)
+        sub_df = sub_df.sort_values(by="date")
 
         # Calendar-date window (not simply last N rows; accounts for non-trading days and gaps)
         range_days_map = {"7d": 7, "30d": 30, "90d": 90}
@@ -579,19 +775,21 @@ class GovMandiService:
         latest_min = float(latest_row["min_price"])
         latest_max = float(latest_row["max_price"])
         actual_date_str = latest_row["date"].strftime("%Y-%m-%d")
-        fetch_iso = str(latest_row.get("retrieved_at", datetime.now(timezone.utc).isoformat()))
+        fetch_iso = str(latest_row.get("retrieved_at", datetime.now(UTC).isoformat()))
 
         # Genuine observation points within calendar window
         historical_points = []
         for _, row in historical_slice.iterrows():
-            historical_points.append(PricePoint(
-                date=row["date"].strftime("%Y-%m-%d"),
-                modal_price=round(float(row["modal_price"]), 1),
-                min_price=round(float(row["min_price"]), 1),
-                max_price=round(float(row["max_price"]), 1),
-                arrival_tonnes=None,  # Not reported in this resource with verified units
-                is_forecast=False
-            ))
+            historical_points.append(
+                PricePoint(
+                    date=row["date"].strftime("%Y-%m-%d"),
+                    modal_price=round(float(row["modal_price"]), 1),
+                    min_price=round(float(row["min_price"]), 1),
+                    max_price=round(float(row["max_price"]), 1),
+                    arrival_tonnes=None,  # Not reported in this resource with verified units
+                    is_forecast=False,
+                )
+            )
 
         # Price change calculation across ~7 calendar days
         unique_dates_count = sub_df["date"].nunique()
@@ -605,11 +803,15 @@ class GovMandiService:
         if not prior_obs.empty:
             prev_price = float(prior_obs.iloc[-1]["modal_price"])
             change_7d = round(latest_modal - prev_price, 2)
-            change_7d_pct = round((change_7d / prev_price) * 100, 2) if prev_price > 0 else 0.0
+            change_7d_pct = (
+                round((change_7d / prev_price) * 100, 2) if prev_price > 0 else 0.0
+            )
         elif unique_dates_count >= 2:
             prev_price = float(sub_df.iloc[0]["modal_price"])
             change_7d = round(latest_modal - prev_price, 2)
-            change_7d_pct = round((change_7d / prev_price) * 100, 2) if prev_price > 0 else 0.0
+            change_7d_pct = (
+                round((change_7d / prev_price) * 100, 2) if prev_price > 0 else 0.0
+            )
 
         if change_7d_pct > 2.0:
             trend_category = "rising"
@@ -618,7 +820,7 @@ class GovMandiService:
 
         # Baseline Forecast:
         # Shown only when at least 5 distinct genuine historical trading day observations exist
-        forecast_points: List[PricePoint] = []
+        forecast_points: list[PricePoint] = []
         is_forecast_available = False
         forecast_status_message = None
 
@@ -665,18 +867,16 @@ class GovMandiService:
             forecast_points=forecast_points,
             is_forecast_available=is_forecast_available,
             forecast_status_message=forecast_status_message,
-            mode="live"
+            mode="live",
         )
 
     def _get_demo_data(
-        self,
-        commodity: str,
-        mandi: str,
-        time_range: str,
-        forecast_days: int
+        self, commodity: str, mandi: str, time_range: str, forecast_days: int
     ) -> MarketPriceResponse:
         """Isolated development demo mode using preserved prototype files with NO silent cross-market substitution."""
-        csv_path = DEMO_PRICES_CSV if os.path.exists(DEMO_PRICES_CSV) else LEGACY_PRICES_CSV
+        csv_path = (
+            DEMO_PRICES_CSV if os.path.exists(DEMO_PRICES_CSV) else LEGACY_PRICES_CSV
+        )
         if not os.path.exists(csv_path):
             raise FileNotFoundError("Demo prices dataset not found.")
 
@@ -690,8 +890,8 @@ class GovMandiService:
             )
 
         m_sub = sub[
-            sub["market"].str.lower().str.contains(mandi.lower()) |
-            (sub["market"].str.lower() == mandi.lower())
+            sub["market"].str.lower().str.contains(mandi.lower())
+            | (sub["market"].str.lower() == mandi.lower())
         ]
         if m_sub.empty:
             raise ValueError(
@@ -700,7 +900,7 @@ class GovMandiService:
             )
 
         sub = m_sub.copy()
-        sub.sort_values(by="date", inplace=True)
+        sub = sub.sort_values(by="date")
 
         # Calendar-date window for demo mode as well
         range_days_map = {"7d": 7, "30d": 30, "90d": 90}
@@ -720,8 +920,10 @@ class GovMandiService:
                 modal_price=round(float(row["modal_price"]), 1),
                 min_price=round(float(row["min_price"]), 1),
                 max_price=round(float(row["max_price"]), 1),
-                arrival_tonnes=float(row["arrival_tonnes"]) if pd.notnull(row.get("arrival_tonnes")) else None,
-                is_forecast=False
+                arrival_tonnes=float(row["arrival_tonnes"])
+                if pd.notnull(row.get("arrival_tonnes"))
+                else None,
+                is_forecast=False,
             )
             for _, row in historical_slice.iterrows()
         ]
@@ -735,7 +937,7 @@ class GovMandiService:
             variety=str(latest["variety"]),
             latest_date=actual_date_str,
             observation_date=actual_date_str,
-            last_fetched_at=datetime.now(timezone.utc).isoformat(),
+            last_fetched_at=datetime.now(UTC).isoformat(),
             latest_modal_price=float(latest["modal_price"]),
             latest_min_price=float(latest["min_price"]),
             latest_max_price=float(latest["max_price"]),
@@ -752,10 +954,10 @@ class GovMandiService:
             forecast_points=forecast_points,
             is_forecast_available=True,
             forecast_status_message=None,
-            mode="demo"
+            mode="demo",
         )
 
-    def _compute_forecast(self, df: pd.DataFrame, days: int = 7) -> List[PricePoint]:
+    def _compute_forecast(self, df: pd.DataFrame, days: int = 7) -> list[PricePoint]:
         recent = df.tail(14)
         if len(recent) < 5:
             return []
@@ -772,23 +974,26 @@ class GovMandiService:
         forecast = []
         for i in range(1, days + 1):
             next_date = last_date + timedelta(days=i)
-            projected_slope = slope * (dampening ** i)
+            projected_slope = slope * (dampening**i)
             projected_price = max(400.0, round(current_base + (projected_slope * i), 1))
             uncertainty = daily_volatility * math.sqrt(i) * 1.35
             lower_bound = max(300.0, round(projected_price - uncertainty, 1))
             upper_bound = round(projected_price + uncertainty, 1)
 
-            forecast.append(PricePoint(
-                date=next_date.strftime("%Y-%m-%d"),
-                modal_price=projected_price,
-                min_price=lower_bound,
-                max_price=upper_bound,
-                arrival_tonnes=None,
-                is_forecast=True,
-                lower_bound=lower_bound,
-                upper_bound=upper_bound
-            ))
+            forecast.append(
+                PricePoint(
+                    date=next_date.strftime("%Y-%m-%d"),
+                    modal_price=projected_price,
+                    min_price=lower_bound,
+                    max_price=upper_bound,
+                    arrival_tonnes=None,
+                    is_forecast=True,
+                    lower_bound=lower_bound,
+                    upper_bound=upper_bound,
+                )
+            )
 
         return forecast
+
 
 gov_mandi_service = GovMandiService()

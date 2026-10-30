@@ -1,6 +1,7 @@
 import math
-from typing import List, Tuple
+
 from app.models import CalculatorRequest, CalculatorResponse, StrategyDetail
+
 
 def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
     """
@@ -21,7 +22,10 @@ def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
         raise ValueError("Storage duration in months must be greater than zero.")
     if req.storage_loss_percentage < 0 or req.storage_loss_percentage > 100:
         raise ValueError("Storage loss percentage must be between 0 and 100.")
-    if req.current_selling_cost_per_quintal < 0 or req.future_selling_cost_per_quintal < 0:
+    if (
+        req.current_selling_cost_per_quintal < 0
+        or req.future_selling_cost_per_quintal < 0
+    ):
         raise ValueError("Selling costs cannot be negative.")
     if req.minimum_cash_required < 0:
         raise ValueError("Minimum cash required cannot be negative.")
@@ -65,12 +69,12 @@ def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
         pros=[
             "Immediate cash realization for urgent household or seasonal input needs",
             "Zero storage charges, labor, or bagging fees",
-            "No risk of physiological weight loss, rot, or post-harvest price crashes"
+            "No risk of physiological weight loss, rot, or post-harvest price crashes",
         ],
         risks=[
             "No upside exposure if market supply tightens and prices surge",
-            "Vulnerable to harvest-glut price suppression typical during peak arrivals"
-        ]
+            "Vulnerable to harvest-glut price suppression typical during peak arrivals",
+        ],
     )
 
     # ----------------------------------------------------
@@ -81,17 +85,23 @@ def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
     strat_b_store_fees = round(q_total * c_store_monthly * m_months, 2)
     strat_b_future_gross = round(strat_b_stored_net * p_future, 2)
     strat_b_future_costs = round((strat_b_stored_net * c_sell_future) + c_other, 2)
-    strat_b_future_net = round(strat_b_future_gross - strat_b_store_fees - strat_b_future_costs, 2)
+    strat_b_future_net = round(
+        strat_b_future_gross - strat_b_store_fees - strat_b_future_costs, 2
+    )
     strat_b_total_net = strat_b_future_net
     strat_b_diff = round(strat_b_total_net - strat_a_imm_cash, 2)
-    strat_b_pct = round((strat_b_diff / strat_a_imm_cash * 100.0), 2) if strat_a_imm_cash > 0 else 0.0
+    strat_b_pct = (
+        round((strat_b_diff / strat_a_imm_cash * 100.0), 2)
+        if strat_a_imm_cash > 0
+        else 0.0
+    )
     strat_b_meets_cash = cash_req <= 0.0
 
     b_verdict = (
         f"Delivers an estimated net gain of ₹{abs(int(strat_b_diff)):,} ({strat_b_pct:+.1f}%) "
         f"if future mandi prices reach ₹{int(p_future)}/q."
-        if strat_b_diff > 0 else
-        f"Results in an estimated net deficit of ₹{abs(int(strat_b_diff)):,} ({strat_b_pct:.1f}%) "
+        if strat_b_diff > 0
+        else f"Results in an estimated net deficit of ₹{abs(int(strat_b_diff)):,} ({strat_b_pct:.1f}%) "
         f"compared to immediate sale due to storage charges and crop shrinkage."
     )
 
@@ -114,13 +124,13 @@ def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
         verdict=b_verdict,
         pros=[
             f"Captures full price appreciation if market rises to ₹{int(p_future)}/q",
-            "Avoids selling at current seasonal supply-peak distress pricing"
+            "Avoids selling at current seasonal supply-peak distress pricing",
         ],
         risks=[
             f"Generates ₹0 immediate cash; fails immediate requirement if you need ₹{int(cash_req):,}",
             f"Incurs {req.storage_loss_percentage}% physical shrinkage ({strat_b_loss_q} q lost)",
-            "Downside risk if off-season prices fail to clear break-even threshold"
-        ]
+            "Downside risk if off-season prices fail to clear break-even threshold",
+        ],
     )
 
     # ----------------------------------------------------
@@ -146,8 +156,12 @@ def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
         strat_c_future_gross = round(strat_c_stored_net * p_future, 2)
         # Pro-rate additional costs by fraction stored
         strat_c_c_other = round(c_other * (strat_c_stored_init / q_total), 2)
-        strat_c_future_costs = round((strat_c_stored_net * c_sell_future) + strat_c_c_other, 2)
-        strat_c_future_net = round(strat_c_future_gross - strat_c_store_fees - strat_c_future_costs, 2)
+        strat_c_future_costs = round(
+            (strat_c_stored_net * c_sell_future) + strat_c_c_other, 2
+        )
+        strat_c_future_net = round(
+            strat_c_future_gross - strat_c_store_fees - strat_c_future_costs, 2
+        )
     else:
         strat_c_loss_q = 0.0
         strat_c_stored_net = 0.0
@@ -157,15 +171,19 @@ def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
 
     strat_c_total_net = round(strat_c_imm_cash + strat_c_future_net, 2)
     strat_c_diff = round(strat_c_total_net - strat_a_imm_cash, 2)
-    strat_c_pct = round((strat_c_diff / strat_a_imm_cash * 100.0), 2) if strat_a_imm_cash > 0 else 0.0
+    strat_c_pct = (
+        round((strat_c_diff / strat_a_imm_cash * 100.0), 2)
+        if strat_a_imm_cash > 0
+        else 0.0
+    )
     strat_c_meets_cash = strat_c_imm_cash >= cash_req
 
     if strat_c_meets_cash:
         c_verdict = (
             f"Generates ₹{int(strat_c_imm_cash):,} immediately to satisfy cash flow needs, while preserving "
             f"{strat_c_stored_init} quintals in storage for ₹{abs(int(strat_c_diff)):,} ({strat_c_pct:+.1f}%) net surplus."
-            if strat_c_diff >= 0 else
-            f"Provides needed ₹{int(strat_c_imm_cash):,} liquidity now, but storage portion underperforms immediate sale."
+            if strat_c_diff >= 0
+            else f"Provides needed ₹{int(strat_c_imm_cash):,} liquidity now, but storage portion underperforms immediate sale."
         )
     else:
         c_verdict = (
@@ -175,20 +193,30 @@ def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
 
     strat_c_pros = []
     if strat_c_meets_cash:
-        strat_c_pros.append(f"Fulfills immediate liquidity requirements (₹{int(strat_c_imm_cash):,} cash in hand today)")
+        strat_c_pros.append(
+            f"Fulfills immediate liquidity requirements (₹{int(strat_c_imm_cash):,} cash in hand today)"
+        )
     else:
-        strat_c_pros.append(f"Unlocks ₹{int(strat_c_imm_cash):,} immediate cash (partial realization)")
-    
+        strat_c_pros.append(
+            f"Unlocks ₹{int(strat_c_imm_cash):,} immediate cash (partial realization)"
+        )
+
     strat_c_pros.append(f"Hedges downside price risk on {strat_c_imm_q} quintals")
     if strat_c_stored_net > 0:
-        strat_c_pros.append(f"Retains {strat_c_stored_net} quintals exposure to expected off-season price rally")
+        strat_c_pros.append(
+            f"Retains {strat_c_stored_net} quintals exposure to expected off-season price rally"
+        )
 
     strat_c_risks = []
     if not strat_c_meets_cash:
-        strat_c_risks.append(f"Does NOT satisfy immediate cash requirement of ₹{int(cash_req):,} (deficit: ₹{int(cash_req - strat_c_imm_cash):,})")
-    strat_c_risks.append(f"Lower upside than 100% storage if prices spike significantly")
+        strat_c_risks.append(
+            f"Does NOT satisfy immediate cash requirement of ₹{int(cash_req):,} (deficit: ₹{int(cash_req - strat_c_imm_cash):,})"
+        )
+    strat_c_risks.append("Lower upside than 100% storage if prices spike significantly")
     if strat_c_loss_q > 0:
-        strat_c_risks.append(f"Still incurs {strat_c_loss_q} q physiological shrinkage on the stored portion")
+        strat_c_risks.append(
+            f"Still incurs {strat_c_loss_q} q physiological shrinkage on the stored portion"
+        )
 
     strat_c = StrategyDetail(
         strategy_id="strategy_c",
@@ -208,7 +236,7 @@ def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
         is_cash_requirement_met=strat_c_meets_cash,
         verdict=c_verdict,
         pros=strat_c_pros,
-        risks=strat_c_risks
+        risks=strat_c_risks,
     )
 
     # ----------------------------------------------------
@@ -218,7 +246,12 @@ def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
     # stored_net * P_be - store_fees - (stored_net * c_sell_future + c_other) = strat_a_imm_cash
     # P_be = (strat_a_imm_cash + store_fees + (stored_net * c_sell_future + c_other)) / stored_net
     if strat_b_stored_net > 0:
-        break_even_p = (strat_a_imm_cash + strat_b_store_fees + (strat_b_stored_net * c_sell_future) + c_other) / strat_b_stored_net
+        break_even_p = (
+            strat_a_imm_cash
+            + strat_b_store_fees
+            + (strat_b_stored_net * c_sell_future)
+            + c_other
+        ) / strat_b_stored_net
         break_even_p = round(break_even_p, 1)
     else:
         break_even_p = round(p_now, 1)
@@ -270,7 +303,7 @@ def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
         f"Physical shrinkage & weight loss: {req.storage_loss_percentage}% over {m_months} months",
         f"Storage charges: ₹{c_store_monthly}/quintal/month",
         f"Mandi handling & transit costs: ₹{c_sell_now}/q today, ₹{c_sell_future}/q future",
-        f"Break-even future price requirement: ₹{break_even_p}/quintal"
+        f"Break-even future price requirement: ₹{break_even_p}/quintal",
     ]
 
     return CalculatorResponse(
@@ -282,5 +315,5 @@ def evaluate_sell_or_store(req: CalculatorRequest) -> CalculatorResponse:
         disclaimer="Transparent mathematical model for post-harvest decision support. Actual warehouse shrinkage, moisture loss, and realized mandi prices depend on ambient climate and market fluctuations.",
         strategy_a_sell_now=strat_a,
         strategy_b_store_all=strat_b,
-        strategy_c_partial=strat_c
+        strategy_c_partial=strat_c,
     )
