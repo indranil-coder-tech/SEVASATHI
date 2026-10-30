@@ -93,9 +93,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           setMarketData(data);
           setError(null);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (isMounted) {
-          setError(err.message || 'Failed to connect to market service.');
+          setError((err instanceof Error ? err.message : String(err)) || 'Failed to connect to market service.');
         }
       } finally {
         if (isMounted) setLoading(false);

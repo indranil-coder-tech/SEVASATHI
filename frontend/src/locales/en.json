@@ -32,7 +32,9 @@
     "unverified": "Unverified",
     "demo_mode": "Demo Mode (Prototype)",
     "live_mode": "Official Live Data",
-    "calculating": "Calculating..."
+    "calculating": "Calculating...",
+    "backend_offline": "Backend Offline",
+    "backend_offline_banner": "Backend service is currently unreachable or starting up. Some live features may be degraded."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -279,7 +281,12 @@
     "guidance_godown_title": "3. General Warehouse / Godown (धान्य गोदाम)",
     "guidance_godown_desc": "Dry, rodent-proof ambient warehouse certified under WDRA. Ideal for bagged grains, pulses, soyabean, and cotton. Not suited for bulk perishable onion bulbs without aeration crates.",
     "guidance_sources_note": "References: ICAR-Directorate of Onion and Garlic Research (DOGR), Rajgurunagar, Pune & National Horticulture Board (NHB) Post-Harvest Standards.",
-    "illustrative_tag": "Illustrative educational visual — not specific facility"
+    "illustrative_tag": "Illustrative educational visual — not specific facility",
+    "gps_received": "GPS location acquired: {location}",
+    "pilot_center_default": "Lasalgaon (Lasalgaon Pilot Center)",
+    "nearest_facility_heading": "Nearest Storage Facility Available",
+    "located_at": "Located at",
+    "view_nearest_btn": "View Nearest Facility on Map & Details"
   },
   "midh": {
     "badge": "Official Historical Subsidy Registry (MIDH Staging)",

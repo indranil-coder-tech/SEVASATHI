@@ -1,15 +1,21 @@
 # Netlify Configuration for SevaSathi Frontend
 
 [build]
+  base = "frontend"
   publish = "dist"
   command = "npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
 
+# Exclude /api from SPA rewrite so unrouted API calls return real 404 instead of HTML 200
+[[redirects]]
+  from = "/api/*"
+  status = 404
+  force = true
+
 # Single-Page Application (SPA) routing fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-

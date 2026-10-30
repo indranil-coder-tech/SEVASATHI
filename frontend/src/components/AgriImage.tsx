@@ -61,8 +61,7 @@ export const AgriImage: React.FC<AgriImageProps> = ({
             src={`${basePath}.jpg`}
             alt={alt}
             loading={priority ? 'eager' : 'lazy'}
-            // @ts-expect-error React 19 fetchPriority
-            fetchpriority={priority ? 'high' : 'auto'}
+            fetchPriority={priority ? 'high' : 'auto'}
             decoding={priority ? 'sync' : 'async'}
             onLoad={() => setIsLoaded(true)}
             onError={() => setHasError(true)}

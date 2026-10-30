@@ -90,9 +90,9 @@ export const CalculatorPage: React.FC<CalculatorPageProps> = ({ initialValues })
       if (currentReqId === requestIdRef.current) {
         setResult(res);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (currentReqId === requestIdRef.current) {
-        setCalcError(err.message || 'Calculation failed. Please verify your inputs.');
+        setCalcError((err instanceof Error ? err.message : String(err)) || 'Calculation failed. Please verify your inputs.');
       }
     } finally {
       if (currentReqId === requestIdRef.current) {
@@ -464,7 +464,7 @@ export const CalculatorPage: React.FC<CalculatorPageProps> = ({ initialValues })
               </h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs text-[#69776D]">
-              {result.assumptions_summary.map((assump, idx) => (
+              {result.assumptions_summary?.map((assump, idx) => (
                 <div key={idx} className="p-2 rounded-lg neo-inset bg-[#E9EEE8]">
                   {assump}
                 </div>

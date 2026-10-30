@@ -30,6 +30,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Testing & Coverage
+.coverage
+.coverage.*
+coverage/
+frontend/coverage/
+frontend/test-results/
+playwright-report/
+blob-report/
+
 # IDE
 .vscode/
 .idea/

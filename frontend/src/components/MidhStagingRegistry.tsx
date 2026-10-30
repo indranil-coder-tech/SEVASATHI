@@ -47,8 +47,8 @@ export const MidhStagingRegistry: React.FC = () => {
       setSummary(res.summary);
       setProjects(res.projects);
       setTotalFiltered(res.total_filtered);
-    } catch (err: any) {
-      setError(err.message || 'प्रकल्प डेटा लोड करण्यास त्रुटी आली.');
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : String(err)) || 'प्रकल्प डेटा लोड करण्यास त्रुटी आली.');
     } finally {
       setLoading(false);
     }
@@ -118,7 +118,7 @@ export const MidhStagingRegistry: React.FC = () => {
               <span>{t('midh.kpi_approved_capacity')}</span>
             </div>
             <span className="text-xl sm:text-2xl font-extrabold text-[#304C38]">
-              {summary.total_capacity_mt.toLocaleString('en-IN')}
+              {(summary.total_capacity_mt || 0).toLocaleString('en-IN')}
             </span>
             <span className="text-[10px] text-[#69776D] block">MT ({t('common.tonnes')})</span>
           </div>
@@ -129,9 +129,9 @@ export const MidhStagingRegistry: React.FC = () => {
               <span>{t('midh.kpi_disbursed_subsidy')}</span>
             </div>
             <span className="text-xl sm:text-2xl font-extrabold text-emerald-800">
-              ₹{(summary.total_subsidy_lakh_inr / 100).toFixed(2)} Cr
+              ₹{((summary.total_subsidy_lakh_inr || 0) / 100).toFixed(2)} Cr
             </span>
-            <span className="text-[10px] text-[#69776D] block">₹{summary.total_subsidy_lakh_inr.toLocaleString('en-IN')} L</span>
+            <span className="text-[10px] text-[#69776D] block">₹{(summary.total_subsidy_lakh_inr || 0).toLocaleString('en-IN')} L</span>
           </div>
 
           <div className="p-3.5 rounded-xl neo-inset bg-[#E9EEE8] space-y-0.5">

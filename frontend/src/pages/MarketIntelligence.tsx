@@ -92,7 +92,7 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
         if (hier.selected_commodity) setSelectedCommodity(hier.selected_commodity);
 
         setHierarchyInitialized(true);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Failed to load initial market hierarchy', err);
         setHierarchyInitialized(true);
       }
@@ -119,7 +119,7 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
       setSelectedMandi(nextMandi);
       setSelectedCommodity(nextComm);
       setSelectedVariety('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to update state hierarchy', err);
     }
   };
@@ -143,7 +143,7 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
       setSelectedMandi(nextMandi);
       setSelectedCommodity(nextComm);
       setSelectedVariety('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to update district hierarchy', err);
     }
   };
@@ -164,7 +164,7 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
       const nextComm = hier.selected_commodity || hier.commodities[0] || 'Onion';
       setSelectedCommodity(nextComm);
       setSelectedVariety('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to update mandi hierarchy', err);
     }
   };
@@ -181,7 +181,7 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
       });
       setVarieties(hier.varieties);
       setSelectedVariety('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to update commodity hierarchy', err);
     }
   };
@@ -203,9 +203,9 @@ export const MarketIntelligence: React.FC<MarketIntelligenceProps> = ({
         mode: mode,
       });
       setMarketData(res);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setMarketData(null);
-      setError(err.message || t('market.no_data_title'));
+      setError((err instanceof Error ? err.message : String(err)) || t('market.no_data_title'));
     } finally {
       setLoading(false);
     }

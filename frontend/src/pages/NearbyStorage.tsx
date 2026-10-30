@@ -15,7 +15,7 @@ import {
   Info,
 } from 'lucide-react';
 import { NeomorphicCard } from '../components/NeomorphicCard';
-import { searchStorageFacilities } from '../services/api';
+import { searchStorageFacilities, getErrorMessage } from '../services/api';
 import type { StorageFacility, StorageSearchResponse } from '../types';
 import { useApp } from '../context/AppContext';
 import { AgriImage } from '../components/AgriImage';
@@ -73,6 +73,9 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
   const [resolutionSource, setResolutionSource] = useState<string>('demo');
   const [locationResolved, setLocationResolved] = useState<boolean>(true);
   const [apiWarning, setApiWarning] = useState<string | null>(null);
+  const [nearestFacility, setNearestFacility] = useState<StorageFacility | null>(null);
+  const [nearestDistanceKm, setNearestDistanceKm] = useState<number | null>(null);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
 
   // Loading & error states
   const [loading, setLoading] = useState<boolean>(true);
@@ -86,6 +89,10 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
     if (!q || !q.trim()) return;
 
     const currentReqId = ++searchReqIdRef.current;
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       setLoading(true);
       setFetchError(null);
@@ -99,11 +106,13 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
         crop: cropFilter !== 'all' ? cropFilter : undefined,
         type: typeFilter !== 'all' ? typeFilter : undefined,
         radius_km: currentRadius > 0 ? currentRadius : undefined,
-      });
+      }, controller.signal);
 
       if (currentReqId !== searchReqIdRef.current) return;
 
       setFacilities(res.facilities);
+      setNearestFacility(res.nearest_facility || null);
+      setNearestDistanceKm(res.nearest_facility_distance_km || null);
       setLocationResolved(res.location_resolved ?? true);
       setResolutionSource(res.resolution_source || 'text');
       setApiWarning(res.warning || null);
@@ -125,9 +134,17 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
       } else {
         setSelectedFacility(null);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       if (currentReqId === searchReqIdRef.current) {
-        setFetchError(err.message || 'Failed to search storage facilities.');
+        setFacilities([]);
+        setSelectedFacility(null);
+        setNearestFacility(null);
+        setNearestDistanceKm(null);
+        setLocationResolved(false);
+        setResolutionSource('text');
+        setResolvedLocationName(q.trim());
+        setFetchError(getErrorMessage(err, 'Failed to search storage facilities.'));
       }
     } finally {
       if (currentReqId === searchReqIdRef.current) {
@@ -144,6 +161,10 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
     explicitRadius?: number
   ) => {
     const currentReqId = ++searchReqIdRef.current;
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       setLoading(true);
       setFetchError(null);
@@ -159,11 +180,13 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
         crop: cropFilter !== 'all' ? cropFilter : undefined,
         type: typeFilter !== 'all' ? typeFilter : undefined,
         radius_km: currentRadius > 0 ? currentRadius : undefined,
-      });
+      }, controller.signal);
 
       if (currentReqId !== searchReqIdRef.current) return;
 
       setFacilities(res.facilities);
+      setNearestFacility(res.nearest_facility || null);
+      setNearestDistanceKm(res.nearest_facility_distance_km || null);
       setLocationResolved(true);
       setResolutionSource('gps');
       setApiWarning(res.warning || null);
@@ -184,9 +207,17 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
       } else {
         setSelectedFacility(null);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       if (currentReqId === searchReqIdRef.current) {
-        setFetchError(err.message || 'Failed to search storage facilities by GPS.');
+        setFacilities([]);
+        setSelectedFacility(null);
+        setNearestFacility(null);
+        setNearestDistanceKm(null);
+        setLocationResolved(false);
+        setResolutionSource('gps');
+        setResolvedLocationName(displayName || `Coordinates (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
+        setFetchError(getErrorMessage(err, 'Failed to search storage facilities by GPS.'));
       }
     } finally {
       if (currentReqId === searchReqIdRef.current) {
@@ -229,9 +260,9 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
       } else {
         setSelectedFacility(null);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (currentReqId === searchReqIdRef.current) {
-        setFetchError(err.message || 'Failed to initialize storage finder.');
+        setFetchError((err instanceof Error ? err.message : String(err)) || 'Failed to initialize storage finder.');
       }
     } finally {
       if (currentReqId === searchReqIdRef.current) {
@@ -255,7 +286,7 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
   useEffect(() => {
     if (userLocation.status === 'granted') {
       executeGpsSearch(userLocation.latitude, userLocation.longitude, userLocation.displayName);
-      setLocationStatus(`GPS स्थान प्राप्त झाले: ${userLocation.displayName}`);
+      setLocationStatus(t('storage.gps_received', { location: userLocation.displayName }));
     }
   }, [userLocation.status, userLocation.latitude, userLocation.longitude]);
 
@@ -490,6 +521,10 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
                   ? 'Admin Gazetteer'
                   : resolutionSource === 'geocoder'
                   ? 'OSM Geocoder'
+                  : activeSearchMode === 'coordinates'
+                  ? 'GPS'
+                  : activeSearchMode === 'text'
+                  ? 'Manual Search'
                   : 'Demo Center'}
               </span>
             </span>
@@ -609,6 +644,26 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
                   ? t('storage.no_facilities_within_radius', { km: String(radiusKm) })
                   : t('storage.no_facilities_found_short')}
               </h3>
+              {nearestFacility && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-left space-y-1 mb-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+                    <MapPin className="w-3.5 h-3.5 text-amber-700" />
+                    <span>{t('storage.nearest_facility_heading') || 'Nearest Storage Facility'}: {nearestFacility.name}</span>
+                  </div>
+                  <p className="text-[11px] text-amber-800">
+                    {t('storage.located_at') || 'Located at'} {nearestFacility.taluka}, {nearestFacility.district} (~{nearestDistanceKm ?? nearestFacility.distance_km?.toFixed(1)} km)
+                  </p>
+                  <button
+                    onClick={() => {
+                      setRadiusKm(0);
+                      setSelectedFacility(nearestFacility);
+                    }}
+                    className="text-[11px] font-semibold text-emerald-800 hover:underline pt-0.5 block"
+                  >
+                    {t('storage.view_nearest_btn') || 'View Facility on Map & Details →'}
+                  </button>
+                </div>
+              )}
               <p className="text-xs text-[#69776D] leading-relaxed">
                 {t('storage.increase_radius_prompt')}
               </p>
@@ -637,8 +692,8 @@ export const NearbyStorage: React.FC<NearbyStorageProps> = ({ initialCropFilter 
           ) : (
             facilities.map((fac) => {
               const isSelected = selectedFacility?.id === fac.id;
-              const isChawl = fac.facility_type.toLowerCase().includes('chawl');
-              const isCold = fac.facility_type.toLowerCase().includes('cold');
+              const isChawl = (fac.facility_type || '').toLowerCase().includes('chawl');
+              const isCold = (fac.facility_type || '').toLowerCase().includes('cold');
               const fee = fac.fee_per_quintal_month_inr ?? fac.storage_price_per_quintal_month;
               const cap = fac.capacity_total_mt ?? fac.capacity_metric_tonnes;
               const isOfficial = fac.verification_status === 'officially_registered';

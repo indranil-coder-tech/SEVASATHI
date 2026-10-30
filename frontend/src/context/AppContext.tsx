@@ -72,19 +72,20 @@ function findNearestCity(lat: number, lng: number) {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // Helper to resolve nested, flat, dotted or underscore-delimited keys from locale object
-function lookupKey(obj: any, key: string): string | undefined {
+function lookupKey(obj: unknown, key: string): string | undefined {
   if (!obj || typeof obj !== 'object') return undefined;
+  const root = obj as Record<string, unknown>;
 
-  // 1. Direct key match (e.g. "app_name", "storage_page_title", "nav.dashboard")
-  if (typeof obj[key] === 'string') return obj[key];
+  // 1. Direct key match
+  if (typeof root[key] === 'string') return root[key] as string;
 
-  // 2. Dot-delimited key match (e.g. "market.latest_modal_price", "nav.dashboard", "storage.page_title")
+  // 2. Dot-delimited key match
   if (key.includes('.')) {
     const parts = key.split('.');
-    let cur = obj;
+    let cur: unknown = root;
     for (const p of parts) {
       if (cur && typeof cur === 'object' && p in cur) {
-        cur = cur[p];
+        cur = (cur as Record<string, unknown>)[p];
       } else {
         cur = undefined;
         break;
@@ -93,49 +94,54 @@ function lookupKey(obj: any, key: string): string | undefined {
     if (typeof cur === 'string') return cur;
   }
 
-  // 3. Underscore-separated key match (e.g. "nav_dashboard" -> obj.nav.dashboard, "storage_page_title" -> obj.storage.page_title)
+  // 3. Underscore-separated key match
   if (key.includes('_')) {
     const firstUnderscore = key.indexOf('_');
     const sectionPrefix = key.slice(0, firstUnderscore);
     const subKey = key.slice(firstUnderscore + 1);
+    const section = root[sectionPrefix];
 
-    if (obj[sectionPrefix] && typeof obj[sectionPrefix] === 'object') {
-      if (typeof obj[sectionPrefix][subKey] === 'string') {
-        return obj[sectionPrefix][subKey];
+    if (section && typeof section === 'object') {
+      const secRec = section as Record<string, unknown>;
+      if (typeof secRec[subKey] === 'string') {
+        return secRec[subKey] as string;
       }
-      if (typeof obj[sectionPrefix][key] === 'string') {
-        return obj[sectionPrefix][key];
+      if (typeof secRec[key] === 'string') {
+        return secRec[key] as string;
       }
     }
   }
 
   // 4. Common Cold Storage & Navbar alias fallbacks
+  const storageSec = root['storage'] as Record<string, unknown> | undefined;
   if (key === 'storage_page_title' || key === 'storage.page_title') {
     const candidate =
-      obj.storage?.page_title ||
-      obj.storage?.storage_page_title ||
-      obj.storage_page_title;
-    if (typeof candidate === 'string') return candidate;
+      storageSec?.page_title ||
+      storageSec?.storage_page_title ||
+      root['storage_page_title'];
+    if (typeof candidate === 'string') return candidate as string;
   }
   if (key === 'storage_page_desc' || key === 'storage.page_desc') {
     const candidate =
-      obj.storage?.page_desc ||
-      obj.storage?.page_subtitle ||
-      obj.storage?.storage_page_desc ||
-      obj.storage_page_desc;
-    if (typeof candidate === 'string') return candidate;
+      storageSec?.page_desc ||
+      storageSec?.page_subtitle ||
+      storageSec?.storage_page_desc ||
+      root['storage_page_desc'];
+    if (typeof candidate === 'string') return candidate as string;
   }
 
-  // 5. Search across all top-level sections (common, nav, market, dashboard, storage, etc.)
-  for (const section of Object.keys(obj)) {
-    if (obj[section] && typeof obj[section] === 'object') {
-      if (typeof obj[section][key] === 'string') {
-        return obj[section][key];
+  // 5. Search across all top-level sections
+  for (const sectionKey of Object.keys(root)) {
+    const section = root[sectionKey];
+    if (section && typeof section === 'object') {
+      const secRec = section as Record<string, unknown>;
+      if (typeof secRec[key] === 'string') {
+        return secRec[key] as string;
       }
       if (key.includes('.')) {
         const leaf = key.split('.').pop()!;
-        if (typeof obj[section][leaf] === 'string') {
-          return obj[section][leaf];
+        if (typeof secRec[leaf] === 'string') {
+          return secRec[leaf] as string;
         }
       }
     }
@@ -143,7 +149,6 @@ function lookupKey(obj: any, key: string): string | undefined {
 
   return undefined;
 }
-
 const translationLookupCache = new Map<string, string | undefined>();
 
 function getTranslation(lang: Language, key: string): string | undefined {
@@ -288,7 +293,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           });
       },
       (err) => {
-        console.warn('Geolocation permission not granted or unavailable:', err.message);
+        console.warn('Geolocation permission not granted or unavailable:', (err instanceof Error ? err.message : String(err)));
         setUserLocation((prev) => ({
           ...prev,
           displayName: 'स्थान परवानगी नाकारली (Location access denied)',

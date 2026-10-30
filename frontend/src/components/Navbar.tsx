@@ -132,7 +132,7 @@ export const Navbar: React.FC<NavbarProps> = React.memo(({ activeTab, setActiveT
           </button>
 
           {/* Mobile Menu Button */}
-          <div className="flex lg:hidden">
+          <div className="flex lg:hidden shrink-0">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

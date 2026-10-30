@@ -117,6 +117,8 @@ export interface StorageSearchResponse {
   query_coords?: { latitude: number; longitude: number };
   distance_type: string;
   facilities: StorageFacility[];
+  nearest_facility?: StorageFacility;
+  nearest_facility_distance_km?: number;
   location_resolved?: boolean;
   resolution_source?: string;
   search_radius_km?: number;

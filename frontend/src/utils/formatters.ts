@@ -18,6 +18,17 @@ export function getLocaleCode(lang: Language): string {
 export function formatDate(dateStr: string, lang: Language): string {
   if (!dateStr) return '';
   try {
+    const parts = dateStr.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      const date = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
+      const locale = getLocaleCode(lang);
+      return new Intl.DateTimeFormat(locale, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(date);
+    }
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
     const locale = getLocaleCode(lang);
